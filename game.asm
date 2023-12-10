@@ -1,73 +1,79 @@
 ;=====================================================================
-;¥Î²Õ¦X»y¨¥¶}µo¤E¤l´Ñ | 08/12/2023
+;ç”¨çµ„åˆèªè¨€é–‹ç™¼ä¹å­æ£‹ | 08/12/2023
 ;=====================================================================
 
 ;=====================================================================
-;¤â°Ê½sÄ¶¬yµ{
+;æ‰‹å‹•ç·¨è­¯æµç¨‹
 ;1)	\masm32\bin\ml /c /coff "main.asm"
 ;2)	\masm32\bin\PoLink /SUBSYSTEM:WINDOWS "main.obj"
 
 ;====================================================================
 
 
-.386
-option casemap	:none	;¤j¤p¼g°Ï¤À
+.486
+option casemap	:none	;å¤§å°å¯«å€åˆ†
 
-;¨ç¦¡®w
-include \masm32\include\masm32rt.inc
-includelib \masm32\lib\kernel32.lib
-includelib \masm32\lib\masm32.lib
+;å‡½å¼åº«
+include C:\masm32\include\masm32rt.inc
+include C:\Masm32\include\winmm.inc 
+include C:\Masm32\Include\msimg32.inc
 
-;¹w¥ıÁn©ú¤@­Ó¨ç¼Æ
-;¨ç¼Æ­ì«¬¦W¬°WinMain¡A¨ã¦³4­Ó°Ñ¼Æ
+includelib C:\masm32\lib\user32.lib
+includelib C:\masm32\lib\kernel32.lib
+includelib C:\Masm32\Lib\msimg32.lib
+includelib C:\Masm32\lib\winmm.lib
+includelib C:\Masm32\Lib\masm32.lib
+
+;é å…ˆè²æ˜ä¸€å€‹å‡½æ•¸
+;å‡½æ•¸åŸå‹åç‚ºWinMainï¼Œå…·æœ‰4å€‹åƒæ•¸
 WinMain proto :DWORD,:DWORD,:DWORD,:DWORD
 
 
-;±a¦³½á­ÈªºÅÜ¼ÆÁn©ú
+;å¸¶æœ‰è³¦å€¼çš„è®Šæ•¸è²æ˜
 .DATA
 windowClassName     db 'Window',0
 windowTitle         db 'Nine Mens Morris',0
 
-;©|¥¼½á­ÈªºÅÜ¼ÆÁn©ú
+;å°šæœªè³¦å€¼çš„è®Šæ•¸è²æ˜
 .DATA?
-instancia   HINSTANCE ? ; µ¡¤f¹ê¨Ò
-argumentos  LPSTR ?     ; À³¥Îµ{¦¡°Ñ¼Æ
+instancia   HINSTANCE ? ; çª—å£å¯¦ä¾‹
+argumentos  LPSTR ?     ; æ‡‰ç”¨ç¨‹å¼åƒæ•¸
 
-    ;±Ò°Ê­ì©l½X
+    ;å•Ÿå‹•åŸå§‹ç¢¼
     .CODE
 start:
     ;=====================================================
 
-    ;¨ú±o·í«e°õ¦æªº¹ê¨Òªº¨ç¼Æ
-    ;¨Ï¥ÎNULLÅı¥¦ªğ¦^·í«e°õ¦æªº¹ê¨Ò
-    ;¦P®É±N¹ê¨Ò¦s¤Jeax±H¦s¾¹
-    invoke GetModuleHandle, NULL ;±N¹ê¨Ò¦s¤Jeax±H¦s¾¹
-    mov instancia, eax  ;±Neax¤¤ªº¹ê¨Ò­È²¾°Ê¨ìÅÜ¼Æ 'instancia' ¤¤¡Fmov ¥Ø¼Ğ, ¨Ó·½
-    invoke GetCommandLine ;Ãş¦ü©óGetModuleHandle¡A¦¹¨ç¼ÆÀò¨úÀ³¥Îµ{¦¡ªº°Ñ¼Æ¡F±N°Ñ¼Æ¦s¤Jeax±H¦s¾¹
-    mov argumentos, eax ;±Neax¤¤ªº°Ñ¼Æ­È²¾°Ê¨ìÅÜ¼Æ 'argumentos' ¤¤
+    ;å–å¾—ç•¶å‰åŸ·è¡Œçš„å¯¦ä¾‹çš„å‡½æ•¸
+    ;ä½¿ç”¨NULLè®“å®ƒè¿”å›ç•¶å‰åŸ·è¡Œçš„å¯¦ä¾‹
+    ;åŒæ™‚å°‡å¯¦ä¾‹å­˜å…¥eaxå¯„å­˜å™¨
+    invoke GetModuleHandle, NULL ;å°‡å¯¦ä¾‹å­˜å…¥eaxå¯„å­˜å™¨
+    mov instancia, eax  ;å°‡eaxä¸­çš„å¯¦ä¾‹å€¼ç§»å‹•åˆ°è®Šæ•¸ 'instancia' ä¸­ï¼›mov ç›®æ¨™, ä¾†æº
+    invoke GetCommandLine ;é¡ä¼¼æ–¼GetModuleHandleï¼Œæ­¤å‡½æ•¸ç²å–æ‡‰ç”¨ç¨‹å¼çš„åƒæ•¸ï¼›å°‡åƒæ•¸å­˜å…¥eaxå¯„å­˜å™¨
+    mov argumentos, eax ;å°‡eaxä¸­çš„åƒæ•¸å€¼ç§»å‹•åˆ°è®Šæ•¸ 'argumentos' ä¸­
 
-    ;°õ¦æWinMain¨ç¼Æ¡A¨Ã±NÅÜ¼Æ 'instancia' ©M 'argumentos' ¶Ç»¼¬°°Ñ¼Æ
-    ;NULLªí¥Ü¨S¦³¤÷©Î¥ı«eªº¹ê¨Ò¡A¦b³oºØ±¡ªp¤U¬°ªÅ
-    ;SW_SHOWDEFAULTªí¥ÜÅã¥Üµ¡¤fªº¼Ò¦¡/¤è¦¡
+    ;åŸ·è¡ŒWinMainå‡½æ•¸ï¼Œä¸¦å°‡è®Šæ•¸ 'instancia' å’Œ 'argumentos' å‚³éç‚ºåƒæ•¸
+    ;NULLè¡¨ç¤ºæ²’æœ‰çˆ¶æˆ–å…ˆå‰çš„å¯¦ä¾‹ï¼Œåœ¨é€™ç¨®æƒ…æ³ä¸‹ç‚ºç©º
+    ;SW_SHOWDEFAULTè¡¨ç¤ºé¡¯ç¤ºçª—å£çš„æ¨¡å¼/æ–¹å¼
     invoke WinMain, instancia, NULL, argumentos, SW_SHOWDEFAULT
 
-    ;¥Heax¤¤ªºªğ¦^­È°h¥X¶iµ{
+    ;ä»¥eaxä¸­çš„è¿”å›å€¼é€€å‡ºé€²ç¨‹
     invoke ExitProcess, eax
 
-    ;¨ã¦³4­Ó°Ñ¼ÆªºWinMain¨ç¼Æ¡A¤w¦b²Ä25¦æÁn©ú¹Lprototype
+    ;å…·æœ‰4å€‹åƒæ•¸çš„WinMainå‡½æ•¸ï¼Œå·²åœ¨ç¬¬25è¡Œè²æ˜éprototype
     WinMain proc hInst:HINSTANCE, hPrevInst:HINSTANCE, CmdLine:LPSTR, CmdShow:DWORD
-        ;¥»¦aÅÜ¼Æ
-        LOCAL estVentana:WNDCLASSEX  ;µ¡¤fµ²ºc¡A¥]§tµ¡¤fªº¯S©Ê
-        LOCAL mensaje:MSG             ;³B²zµo°e¨ìµ¡¤fªº®ø®§ªºÅÜ¼Æ¡A¨Ò¦p«ö¶sªº°Ê§@
-        LOCAL manejador:HWND          ;µ¡¤fªº³B²zµ{§Ç¡A¥Î©óÃÑ§Oµ¡¤f
+        ;æœ¬åœ°è®Šæ•¸
+        LOCAL estVentana:WNDCLASSEX  ;çª—å£çµæ§‹ï¼ŒåŒ…å«çª—å£çš„ç‰¹æ€§
+        LOCAL mensaje:MSG             ;è™•ç†ç™¼é€åˆ°çª—å£çš„æ¶ˆæ¯çš„è®Šæ•¸ï¼Œä¾‹å¦‚æŒ‰éˆ•çš„å‹•ä½œ
+        LOCAL manejador:HWND          ;çª—å£çš„è™•ç†ç¨‹åºï¼Œç”¨æ–¼è­˜åˆ¥çª—å£
 
-        ;³]¸mµ¡¤fµ²ºc
+        ;è¨­ç½®çª—å£çµæ§‹
         mov estVentana.cbSize, SIZEOF WNDCLASSEX
         mov estVentana.style, CS_HREDRAW or CS_VREDRAW
         mov estVentana.lpfnWndProc, OFFSET WndProc
         mov estVentana.cbClsExtra, NULL
         mov estVentana.cbWndExtra, NULL
-        push instancia      ;«ü©wµ¡¤fÄİ©ó­ş­Ó¹ê¨Ò
+        push instancia      ;æŒ‡å®šçª—å£å±¬æ–¼å“ªå€‹å¯¦ä¾‹
         pop estVentana.hInstance
         mov estVentana.hbrBackground, COLOR_WINDOW + 1
         mov estVentana.lpszMenuName, NULL
@@ -78,68 +84,68 @@ start:
         invoke LoadCursor, NULL, IDC_ARROW
         mov estVentana.hCursor, eax
 
-        ;µù¥Uµ¡¤fÃş§O
+        ;è¨»å†Šçª—å£é¡åˆ¥
         invoke RegisterClassEx, addr estVentana
         
-        ;³Ğ«Øµ¡¤f
+        ;å‰µå»ºçª—å£
         invoke CreateWindowEx,
             NULL,
             ADDR windowClassName,
             ADDR windowTitle,
             WS_OVERLAPPEDWINDOW,
-            CW_USEDEFAULT, ;µ¡¤f¤Ø¤o
+            CW_USEDEFAULT, ;çª—å£å°ºå¯¸
 			CW_USEDEFAULT, 
-			CW_USEDEFAULT, ;µ¡¤f¦ì¸m
+			CW_USEDEFAULT, ;çª—å£ä½ç½®
 			CW_USEDEFAULT,
             NULL,
             NULL,
             hInst,
             NULL
 
-        ;«e­z¨ç¼Æ±N³B²zµ{§Ç¦s¤Jeax
+        ;å‰è¿°å‡½æ•¸å°‡è™•ç†ç¨‹åºå­˜å…¥eax
         mov manejador, eax
 
-        ;Åã¥Üµ¡¤f
+        ;é¡¯ç¤ºçª—å£
         invoke ShowWindow, manejador, SW_SHOWNORMAL
 
-        ;³q¹L¶Ç»¼³B²zµ{§Ç§ó·sµ¡¤f
+        ;é€šéå‚³éè™•ç†ç¨‹åºæ›´æ–°çª—å£
         invoke UpdateWindow, manejador
 
-        ;´`Àô¥H³B²z®ø®§
+        ;å¾ªç’°ä»¥è™•ç†æ¶ˆæ¯
         .WHILE TRUE
-            ;°õ¦æÅª¨ú®ø®§ªº¨ç¼Æ
+            ;åŸ·è¡Œè®€å–æ¶ˆæ¯çš„å‡½æ•¸
             invoke GetMessage, ADDR mensaje, NULL, 0, 0
             .BREAK .IF (!eax)
 
-            ;³B²z®ø®§
+            ;è™•ç†æ¶ˆæ¯
             invoke TranslateMessage, ADDR mensaje
             invoke DispatchMessage, ADDR mensaje
         .ENDW
 
-        ;±N®ø®§°Ñ¼Æ²¾¨ìeax
+        ;å°‡æ¶ˆæ¯åƒæ•¸ç§»åˆ°eax
         mov  eax, mensaje.wParam
 
-        ;¥Heaxªº­Èµ²§ô¨Ãªğ¦^
+        ;ä»¥eaxçš„å€¼çµæŸä¸¦è¿”å›
         ret
     WinMain endP
 
-    ;³B²z®ø®§ªº¨ç¼Æ
+    ;è™•ç†æ¶ˆæ¯çš„å‡½æ•¸
     WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
-        ;ÀË¬d®ø®§¬O§_¬°Ãö³¬µ¡¤f
+        ;æª¢æŸ¥æ¶ˆæ¯æ˜¯å¦ç‚ºé—œé–‰çª—å£
         .IF uMsg==WM_DESTROY
-            ;°õ¦æ°h¥X
+            ;åŸ·è¡Œé€€å‡º
             invoke PostQuitMessage, NULL
         .ELSE
-            ;¨Ï¥ÎÀq»{®ø®§³B²z
+            ;ä½¿ç”¨é»˜èªæ¶ˆæ¯è™•ç†
             Invoke DefWindowProc, hWnd, uMsg, wParam,lParam
             ret
         .ENDIF
 
-        ;±Neax³]¬°0
+        ;å°‡eaxè¨­ç‚º0
         xor eax, eax
         ret
     WndProc endp
 
     ;=====================================================
-;­ì©l½Xµ²§ô
+;åŸå§‹ç¢¼çµæŸ
 end start
