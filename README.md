@@ -33,7 +33,7 @@
   <p align="center">
      NCU Assembly | Nov 2023 | Final Project 
     <br />
-    <a href=""><strong>Explore the devlopement docs »</strong></a>
+    <a href="./docs/development.md"><strong>Explore the devlopement docs »</strong></a>
     <br />
     <br />
     <!-- <a href="">View Demo</a> -->
