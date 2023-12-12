@@ -53,12 +53,15 @@
 
 - **鏈接器：**　 
 
-- **編輯器：**　[Visual Studio Code](https://code.visualstudio.com/), [MASM Editor](https://www.masm32.com/)
+- **編輯器：**[Visual Studio Code](https://code.visualstudio.com/), [MASM Editor](https://www.masm32.com/)
 
 ## 遊戲規則
 
 <!-- @TODO: Add game design -->
 
+## 開始遊戲
+
+<!-- @TODO: -->
 
 ## 遊戲流程
 
@@ -66,10 +69,14 @@
 
 
 
+## 貢獻者
 
-## 參考資料
-
-- [Nine men's morris - Wikipedia](https://en.wikipedia.org/wiki/Nine_men%27s_morris)
+<table>
+  <tr>
+ <td align="center"><a href="https://github.com/xxrjun"><img src="https://avatars.githubusercontent.com/u/40348319?v=4" width="100px;" alt=""/><br /><sub><b>xxrjun</b></sub></a><br/></td>
+  
+ <td align="center"><a href="https://github.com/FuHarrison"><img src="https://avatars.githubusercontent.com/u/92322412?v=4" width="100px;" alt=""/><br /><sub><b>FuHarrison</b></sub></a><br/></td>
+</table>
 
 
 [contributors-shield]: https://img.shields.io/github/contributors/xxrjun/battle-royale.svg?style=for-the-badge
