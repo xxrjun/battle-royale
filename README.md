@@ -25,7 +25,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/xxrjun/battle-royale">
-    <img src="./assets/banner_dalle.png" alt="Logo" width="800" height="400">
+    <img src="./assets/docs/banner_dalle.png" alt="Logo" width="800" height="400">
   </a>
 
   <h3 align="center">Battle Royale Game</h3>

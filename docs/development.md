@@ -1,5 +1,11 @@
 # Battle Royale Development Docs
 
+## 開發工具
+
+- [MASM32](https://www.masm32.com/index.htm) - 編譯器
+- [ChatGPT](https://chat.openai.com/) with GPT4.0 - 協作工具，詢問程式碼、開發問題等
+- [DALL·E](https://openai.com/dall-e-3) - 圖片生成工具，用於製作遊戲素材
+
 ## 遊戲設計
 
 > 別人恐懼我貪婪
@@ -53,3 +59,5 @@ NineMensMorris/
 └── .gitignore          # Git忽略文件配置
 
 ```
+
+## 參考資料與工具
