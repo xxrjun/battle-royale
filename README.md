@@ -1,7 +1,45 @@
-# Assembly 九子棋
+<a name="readme-top"></a>
 
-> NCU CSIE Assembly Language and System Programming, 2023 Fall, Final Project
-> Group 26: MIS 109403019 鄒翔宇, MIS 109403021 傅珩洵
+<!-- PROJECT SHIELDS -->
+<!--
+*** I'm using markdown "reference style" links for readability.
+*** Reference links are enclosed in brackets [ ] instead of parentheses ( ).
+*** See the bottom of this document for the declaration of the reference variables
+*** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
+*** https://www.markdownguide.org/basic-syntax/#reference-style-links
+-->
+[![Contributors][contributors-shield]][contributors-url]
+[![Forks][forks-shield]][forks-url]
+[![Stargazers][stars-shield]][stars-url]
+<!-- [![MIT License][license-shield]][license-url] -->
+
+# Battle Royale
+
+>  MIS 109403019 鄒翔宇, MIS 109403021 傅珩洵
+
+<!-- 中英版文件 -->
+<!-- @TODO -->
+<!-- [English](./README.md) | [中文](./README_zh.md) -->
+
+
+<br />
+<div align="center">
+  <a href="https://github.com/xxrjun/battle-royale">
+    <img src="./assets/banner_dalle.png" alt="Logo" width="800" height="400">
+  </a>
+
+  <h3 align="center">Battle Royale Game</h3>
+
+  <p align="center">
+     NCU Assembly | Nov 2023 | Final Project 
+    <br />
+    <a href=""><strong>Explore the devlopement docs »</strong></a>
+    <br />
+    <br />
+    <!-- <a href="">View Demo</a> -->
+  </p>
+</div>
+
 
 ## 繳交
 
@@ -9,97 +47,36 @@
 - [ ] PPT
 - [ ] Report: README and PDF
 
-## 概覽
-
-此項目是使用 Assembly 語言開發的經典棋盤遊戲九子棋。
-
-@TODO: Add screenshot
-
 ## 開發工具
 
-- **編譯器:** MASM
-- **鏈接器:** 適用於您的 Assembly 語言的鏈接器（例如，NASM 的 LD）。
-- **調試器:** 用於調試 Assembly 代碼的工具，如 GDB。
-- **環境:** 若目標舊系統，則使用 DOSBox 或類似環境。
-- **編輯器:** [Visual Studio 2019](https://visualstudio.microsoft.com/zh-hant/vs/older-downloads/)
+- **編譯器：** [MASM32](https://www.masm32.com/index.htm)
 
-## 九子棋遊戲規則
+- **鏈接器：**　 
 
-> Reference from [Wikipedia](https://en.wikipedia.org/wiki/Nine_men%27s_morris)
+- **編輯器：**　[Visual Studio Code](https://code.visualstudio.com/), [MASM Editor](https://www.masm32.com/)
 
-九子棋是一款古老的策略棋盤遊戲，適合兩名玩家。棋盤由三個大小不一的正方形組成，每個邊上有三個點，總共 24 個點。每位玩家有九個棋子。遊戲主要分成三個階段：
+## 遊戲規則
 
-1. 擺放棋子
-2. 移動棋子
-3. 飛行
+<!-- @TODO: Add game design -->
 
-### 第一階段：擺放棋子
 
-1. **輪流放置棋子：** 遊戲開始時，棋盤空無一物。玩家輪流在空的點上放置一個自己的棋子，直到雙方各自的九個棋子都放置完畢。
+## 遊戲流程
 
-2. **形成「磨坊」：** 如果玩家在任何一條直線（水平或垂直）上形成了三個連續的棋子（稱為「磨坊」mill），則該玩家可以從對手的棋子中移除一個（非磨坊中的棋子）。如果所有對手的棋子都在磨坊中，則可以移除任何一個對手的棋子。
+<!-- @TODO: Add flowchart -->
 
-### 第二階段：移動棋子
 
-1. **輪流移動棋子：** 擺放階段結束後，玩家輪流將自己的棋子從一個點移動到相鄰的空點。
 
-2. **再次形成磨坊：** 在此階段，如果玩家移動一個棋子並形成新的磨坊，則同樣可以從對方棋子中移除一個。
-
-### 第三階段：「飛行」(Flying)
-
-當玩家只剩下三個棋子時，他們可以將棋子「飛」到棋盤上的任何空點，而不僅僅是相鄰的點。
-
-### 獲勝條件
-
-- 如果對手只剩下兩個棋子，則該玩家獲勝。
-- 如果對手無法進行合法移動，則該玩家獲勝。
-
-### 特殊規則
-
-- **重複磨坊：** 一個磨坊不能在連續的兩次移動中重複形成（即不能移動同一磨坊中的棋子來反覆形成磨坊）。
-
-## 程式執行流程
-
-## 專案架構
-
-> 預期結構大致如下：
-
-```bash
-NineMensMorris/
-│
-├── src/                # 源代碼目錄
-│   ├── main.asm        # 主程式入口點
-│   ├── game_logic.asm  # 遊戲邏輯處理
-│   ├── ui.asm          # 用戶介面處理
-│   └── utils.asm       # 工具和公用函數
-│
-├── bin/                # 編譯後的二進制文件和可執行文件
-│   └── NineMensMorris.exe
-│
-├── docs/               # 文件目錄
-│   ├── rules.md        # 遊戲規則說明
-│   └── development.md  # 開發相關文檔
-│
-├── test/               # 測試代碼和測試文檔
-│   ├── test_game_logic.asm
-│   └── test_ui.asm
-│
-├── README.md           # 專案說明文件
-├── lib/                # 外部庫和依賴
-├── assets/             # 資源文件，如圖像、音效等（如果有）
-├── Makefile            # 編譯腳本
-└── .gitignore          # Git忽略文件配置
-
-```
-
-## 開發過程
-
-1. **規劃:** 明確遊戲的核心邏輯、用戶界面設計以及系統架構。這包括確定遊戲規則的實現方式和用戶界面的布局。
-2. **編碼:** 根據規劃開始實現遊戲。這個階段將專注於高效地使用 Assembly 語言來編寫代碼，並將代碼劃分為模塊化組件。
-3. **測試:** 對遊戲進行嚴格的測試，包括功能測試、性能測試和使用者體驗測試。任何發現的問題都將被記錄並解決。
-4. **優化:** 基於測試結果，對代碼進行優化，以提高性能和記憶體效率。這可能包括重構代碼以改進結構和清晰度。
-5. **文件化:** 完成
 
 ## 參考資料
 
 - [Nine men's morris - Wikipedia](https://en.wikipedia.org/wiki/Nine_men%27s_morris)
+
+
+[contributors-shield]: https://img.shields.io/github/contributors/xxrjun/battle-royale.svg?style=for-the-badge
+[contributors-url]: https://github.com/xxrjun/battle-royale/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/xxrjun/battle-royale.svg?style=for-the-badge
+[forks-url]: https://github.com/xxrjun/battle-royale/network/members
+[stars-shield]: https://img.shields.io/github/stars/xxrjun/battle-royale.svg?style=for-the-badge
+[stars-url]: https://github.com/xxrjun/battle-royale/stargazers
+[license-shield]: https://img.shields.io/github/license/xxrjun/battle-royale.svg?style=for-the-badge
+[license-url]: https://github.com/xxrjun/battle-royale/blob/master/LICENSE.txt
