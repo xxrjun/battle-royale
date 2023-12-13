@@ -4,141 +4,256 @@
 
 ;=====================================================================
 ;手動編譯流程
-;1)	\masm32\bin\ml /c /coff "main.asm"
-;2)	\masm32\bin\PoLink /SUBSYSTEM:WINDOWS "main.obj"
+;1)	ml /c /coff "game.asm"
+;2)	Link /SUBSYSTEM:WINDOWS "game.obj"
 
 ;====================================================================
 
 
-.386
+.486
+.model flat, stdcall  
 option casemap	:none	;大小寫區分
 
-;函式庫
-include \masm32\include\masm32rt.inc
-includelib \masm32\lib\kernel32.lib
-includelib \masm32\lib\masm32.lib
+include battle_royale.inc ;函式庫
+; #########################################################################
 
-;預先聲明一個函數
-;函數原型名為WinMain，具有4個參數
-WinMain proto :DWORD,:DWORD,:DWORD,:DWORD
+; ------------------------------------------------------------------------
+; MACROS are a method of expanding text at assembly time. This allows the
+; programmer a tidy and convenient way of using COMMON blocks of code with
+; the capacity to use DIFFERENT parameters in each block.
+; ------------------------------------------------------------------------
 
+      ; 1. szText
+      ; A macro to insert TEXT into the code section for convenient and 
+      ; more intuitive coding of functions that use byte data as text.
+
+      szText MACRO Name, Text:VARARG
+        LOCAL lbl
+          jmp lbl
+            Name db Text,0
+          lbl:
+        ENDM
+
+      ; 2. m2m
+      ; There is no mnemonic to copy from one memory location to another,
+      ; this macro saves repeated coding of this process and is easier to
+      ; read in complex code.
+
+      m2m MACRO M1, M2
+        push M2
+        pop  M1
+      ENDM
+
+      ; 3. return
+      ; Every procedure MUST have a "ret" to return the instruction
+      ; pointer EIP back to the next instruction after the call that
+      ; branched to it. This macro puts a return value in eax and
+      ; makes the "ret" instruction on one line. It is mainly used
+      ; for clear coding in complex conditionals in large branching
+      ; code such as the WndProc procedure.
+
+      return MACRO arg
+        mov eax, arg
+        ret
+      ENDM
+
+; #########################################################################
+; ----------------------------------------------------------------------
+; Prototypes are used in conjunction with the MASM "invoke" syntax for
+; checking the number and size of parameters passed to a procedure. This
+; improves the reliability of code that is written where errors in
+; parameters are caught and displayed at assembly time.
+; ----------------------------------------------------------------------
+
+        WinMain   PROTO :DWORD,:DWORD,:DWORD,:DWORD
+        WndProc   PROTO :DWORD,:DWORD,:DWORD,:DWORD
+        TopXY     PROTO :DWORD,:DWORD
+        PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD                    
+; #########################################################################
+; ------------------------------------------------------------------------
+; This is the INITIALISED data section meaning that data declared here has
+; an initial value. You can also use an UNINIALISED section if you need
+; data of that type [ .data? ]. Note that they are different and occur in
+; different sections.
+; ------------------------------------------------------------------------
+;常數宣告
+.const
+    gameBoard equ 100
 
 ;帶有賦值的變數聲明
-.DATA
-windowClassName     db 'Window',0
-windowTitle         db 'Nine Mens Morris',0
+.data
+    windowClassName     db 'Window',0
+    szDisplayName         db 'Battle Royale',0
+    gameBoardBmp    dd  0
+    paintstruct   PAINTSTRUCT <>
 
 ;尚未賦值的變數聲明
-.DATA?
-instancia   HINSTANCE ? ; 窗口實例
-argumentos  LPSTR ?     ; 應用程式參數
-
-    ;啟動原始碼
-    .CODE
+.data?
+    hInstance   HINSTANCE ? ; 窗口實例
+    arguments  LPSTR ?     ; 應用程式參數
+    
+    hWnd HWND ?
+; #########################################################################
+; ------------------------------------------------------------------------
+; This is the start of the code section where executable code begins. This
+; section ending with the ExitProcess() API function call is the only
+; GLOBAL section of code and it provides access to the WinMain function
+; with the necessary parameters, the instance handle and the command line
+; address.
+; ------------------------------------------------------------------------
+.code
 start:
-    ;=====================================================
+    invoke GetModuleHandle, NULL 
+    mov hInstance, eax  ;將eax中的實例值移動到變數 'instance' 中；mov 目標, 來源
 
-    ;取得當前執行的實例的函數
-    ;使用NULL讓它返回當前執行的實例
-    ;同時將實例存入eax寄存器
-    invoke GetModuleHandle, NULL ;將實例存入eax寄存器
-    mov instancia, eax  ;將eax中的實例值移動到變數 'instancia' 中；mov 目標, 來源
-    invoke GetCommandLine ;類似於GetModuleHandle，此函數獲取應用程式的參數；將參數存入eax寄存器
-    mov argumentos, eax ;將eax中的參數值移動到變數 'argumentos' 中
+    ;載入圖片
+    invoke LoadBitmap, hInstance, gameBoard
+    mov    gameBoardBmp, eax
 
-    ;執行WinMain函數，並將變數 'instancia' 和 'argumentos' 傳遞為參數
-    ;NULL表示沒有父或先前的實例，在這種情況下為空
-    ;SW_SHOWDEFAULT表示顯示窗口的模式/方式
-    invoke WinMain, instancia, NULL, argumentos, SW_SHOWDEFAULT
-
-    ;以eax中的返回值退出進程
+    invoke WinMain, hInstance, NULL, arguments, SW_SHOWDEFAULT
     invoke ExitProcess, eax
 
-    ;具有4個參數的WinMain函數，已在第25行聲明過prototype
-    WinMain proc hInst:HINSTANCE, hPrevInst:HINSTANCE, CmdLine:LPSTR, CmdShow:DWORD
-        ;本地變數
-        LOCAL estVentana:WNDCLASSEX  ;窗口結構，包含窗口的特性
-        LOCAL mensaje:MSG             ;處理發送到窗口的消息的變數，例如按鈕的動作
-        LOCAL manejador:HWND          ;窗口的處理程序，用於識別窗口
+    ;繪製圖片的函數
+    paintBackground proc _hdc:HDC,_hMemDC:HDC, _hMemDC2:HDC
+        LOCAL rect   :RECT; RECT 結構定義了矩形左上角和右下角的坐標。
 
-        ;設置窗口結構
-        mov estVentana.cbSize, SIZEOF WNDCLASSEX
-        mov estVentana.style, CS_HREDRAW or CS_VREDRAW
-        mov estVentana.lpfnWndProc, OFFSET WndProc
-        mov estVentana.cbClsExtra, NULL
-        mov estVentana.cbWndExtra, NULL
-        push instancia      ;指定窗口屬於哪個實例
-        pop estVentana.hInstance
-        mov estVentana.hbrBackground, COLOR_WINDOW + 1
-        mov estVentana.lpszMenuName, NULL
-        mov estVentana.lpszClassName, OFFSET windowClassName
-        invoke LoadIcon, NULL, IDI_APPLICATION
-        mov estVentana.hIcon, eax
-        mov estVentana.hIconSm, eax
-        invoke LoadCursor, NULL, IDC_ARROW
-        mov estVentana.hCursor, eax
-
-        ;註冊窗口類別
-        invoke RegisterClassEx, addr estVentana
+        ; 選擇 hBmp 作為背景圖片
+        invoke SelectObject, _hMemDC2, gameBoardBmp
         
-        ;創建窗口
-        invoke CreateWindowEx,
-            NULL,
-            ADDR windowClassName,
-            ADDR windowTitle,
-            WS_OVERLAPPEDWINDOW,
-            CW_USEDEFAULT, ;窗口尺寸
-			CW_USEDEFAULT, 
-			CW_USEDEFAULT, ;窗口位置
-			CW_USEDEFAULT,
-            NULL,
-            NULL,
-            hInst,
-            NULL
-
-        ;前述函數將處理程序存入eax
-        mov manejador, eax
-
-        ;顯示窗口
-        invoke ShowWindow, manejador, SW_SHOWNORMAL
-
-        ;通過傳遞處理程序更新窗口
-        invoke UpdateWindow, manejador
-
-        ;循環以處理消息
-        .WHILE TRUE
-            ;執行讀取消息的函數
-            invoke GetMessage, ADDR mensaje, NULL, 0, 0
-            .BREAK .IF (!eax)
-
-            ;處理消息
-            invoke TranslateMessage, ADDR mensaje
-            invoke DispatchMessage, ADDR mensaje
-        .ENDW
-
-        ;將消息參數移到eax
-        mov  eax, mensaje.wParam
-
-        ;以eax的值結束並返回
+        ; 將 _hMemDC2 中的圖片複製到 _hMemDC，顯示背景
+        invoke BitBlt, _hMemDC, 0, 0, 1792, 1024, _hMemDC2, 0, 0, SRCCOPY
         ret
-    WinMain endP
+    paintBackground endp
+
+    screenUpdate proc
+        LOCAL hMemDC:HDC
+        LOCAL hMemDC2:HDC
+        LOCAL hBitmap:HDC
+        LOCAL hDC:HDC
+
+        invoke BeginPaint, hWnd, ADDR paintstruct   ;BeginPaint函數為繪畫準備指定的窗口，並用有關繪畫的信息填充 PAINTSTRUCT 結構。
+        mov hDC, eax
+        invoke CreateCompatibleDC, hDC  ;CreateCompatibleDC函數創建與指定設備兼容的內存設備內容 (DC)
+        mov hMemDC, eax
+        invoke CreateCompatibleDC, hDC ; for double buffering
+        mov hMemDC2, eax
+        invoke CreateCompatibleBitmap, hDC, 1792, 1024
+        mov hBitmap, eax
+
+        invoke SelectObject, hMemDC, hBitmap
+
+        invoke paintBackground, hDC, hMemDC, hMemDC2
+        invoke BitBlt, hDC, 0, 0, 1792, 1024, hMemDC, 0, 0, SRCCOPY
+
+        invoke DeleteDC, hMemDC     ;DeleteDC 函數刪除指定的設備內容 (DC)。
+        invoke DeleteDC, hMemDC2
+        invoke DeleteObject, hBitmap
+        invoke EndPaint, hWnd, ADDR paintstruct ;EndPaint 函數標記指定窗口中的繪製結束。每次調用 BeginPaint 函數時都需要此函數，但僅在繪製完成後才需要
+        ret
+    screenUpdate endp   
+
+    ;具有4個參數的WinMain函數，已在第25行聲明過prototype
+    ; 把 WinMain 程序放在這裡來創建窗口本身
+    WinMain proc hInst     :DWORD,
+                hPrevInst :DWORD,
+                CmdLine   :DWORD,
+                CmdShow   :DWORD
+
+        LOCAL wc   :WNDCLASSEX
+        LOCAL msg  :MSG     ;MSG結構包含來自Thread的消息隊列的信息
+
+        LOCAL Wwd  :DWORD
+        LOCAL Wht  :DWORD
+        LOCAL Wtx  :DWORD
+        LOCAL Wty  :DWORD
+
+        szText szClassName,"Windowclass1"
+        
+        ;==================================================
+        ; Fill WNDCLASSEX structure with required variables
+        ;==================================================
+
+        mov wc.cbSize,         sizeof WNDCLASSEX
+        mov wc.style,          CS_HREDRAW or CS_VREDRAW \
+                            or CS_BYTEALIGNWINDOW
+        mov wc.lpfnWndProc,    offset WndProc       ;本視窗的訊息處裡函式
+        mov wc.cbClsExtra,     NULL                 ;附加引數
+        mov wc.cbWndExtra,     NULL                 ;附加引數
+        m2m wc.hInstance,      hInst                ;當前應用程式的例向控制代碼
+        mov wc.hbrBackground,  COLOR_BTNFACE+1      ;視窗背景色
+        mov wc.lpszMenuName,   NULL                 ;視窗選單
+        mov wc.lpszClassName,  offset szClassName   ;視窗結構體的名稱 ;給視窗結構體命名，CreateWindow函式將根據視窗結構體名稱來建立視窗
+        ; RC 文件中的圖標 ID
+        invoke LoadIcon,hInst, IDI_APPLICATION      ;視窗圖式
+        mov wc.hIcon,          eax
+        invoke LoadCursor,NULL,IDC_ARROW            ;視窗游標
+        mov wc.hCursor,        eax
+        mov wc.hIconSm,        0
+
+        invoke RegisterClassEx, ADDR wc             ;註冊視窗
+
+
+        invoke CreateWindowEx,WS_EX_OVERLAPPEDWINDOW, \
+                            ADDR szClassName, \
+                            ADDR szDisplayName,\
+                            WS_OVERLAPPEDWINDOW,\
+                            ;Wtx,Wty,Wwd,Wht,
+                            CW_USEDEFAULT,CW_USEDEFAULT, 1792, 1024, \      ;窗口大小
+                            NULL,NULL,\
+                            hInst,NULL
+
+
+        mov   hWnd,eax  ; copy return value into handle DWORD
+
+        invoke LoadMenu,hInst,600                 ; load resource menu
+        invoke SetMenu,hWnd,eax                   ; set it to main window
+
+        invoke ShowWindow,hWnd,SW_SHOWNORMAL      ; display the window
+        invoke UpdateWindow,hWnd                  ; update the display
+
+        ;===================================
+        ; Loop until PostQuitMessage is sent
+        ;===================================
+
+        StartLoop:
+        invoke GetMessage,ADDR msg,NULL,0,0         ; get each message
+        cmp eax, 0                                  ; exit if GetMessage()
+        je ExitLoop                                 ; returns zero
+        invoke TranslateMessage, ADDR msg           ; translate it
+        invoke DispatchMessage,  ADDR msg           ; send it to message proc
+        jmp StartLoop
+        ExitLoop:
+
+        return msg.wParam   ;wParam:指定有關消息的附加信息。確切含義取決於消息成員的值
+
+    WinMain endp
 
     ;處理消息的函數
-    WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
-        ;檢查消息是否為關閉窗口
-        .IF uMsg==WM_DESTROY
-            ;執行退出
-            invoke PostQuitMessage, NULL
-        .ELSE
-            ;使用默認消息處理
-            Invoke DefWindowProc, hWnd, uMsg, wParam,lParam
-            ret NCU CSIE Assembly Language and System Programming
-        .ENDIF
+    WndProc proc hWin   :DWORD,
+            uMsg   :DWORD,
+            wParam :DWORD,
+            lParam :DWORD
 
-        ;將eax設為0
-        xor eax, eax
+    LOCAL hDC    :DWORD
+    LOCAL Ps     :PAINTSTRUCT
+    LOCAL rect   :RECT
+    LOCAL Font   :DWORD
+    LOCAL Font2  :DWORD
+    LOCAL hOld   :DWORD
+
+    LOCAL memDC  :DWORD
+        .if uMsg == WM_PAINT    ;當系統或其他應用程序請求繪製應用程序窗口的一部分時，會發送 WM_PAINT 消息
+            invoke screenUpdate
+
+        .elseif uMsg == WM_DESTROY                                        ; if the user closes our window 
+            invoke PostQuitMessage,NULL          
+        .else
+            invoke DefWindowProc, hWin, uMsg, wParam, lParam                         ; quit our application 
+        .endif                            ; quit our application 
         ret
     WndProc endp
+
+
 
     ;=====================================================
 ;原始碼結束
