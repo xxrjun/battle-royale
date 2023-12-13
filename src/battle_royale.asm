@@ -78,14 +78,21 @@ include battle_royale.inc ;函式庫
 ; ------------------------------------------------------------------------
 ;常數宣告
 .const
-    gameBoard equ 100
+    background  equ 100
+    player      equ 1001
 
+    CREF_TRANSPARENT  EQU 00FFFFFFh
 ;帶有賦值的變數聲明
 .data
     windowClassName     db 'Window',0
     szDisplayName         db 'Battle Royale',0
-    gameBoardBmp    dd  0
     paintstruct   PAINTSTRUCT <>
+    buffer        db 256 dup(0)
+
+    backgroundBmp    dd  0      ;圖片檔
+    playerBmp        dd  0
+    playerY          dd  250     ; 玩家位置
+    playerX          dd  250 
 
 ;尚未賦值的變數聲明
 .data?
@@ -107,8 +114,10 @@ start:
     mov hInstance, eax  ;將eax中的實例值移動到變數 'instance' 中；mov 目標, 來源
 
     ;載入圖片
-    invoke LoadBitmap, hInstance, gameBoard
-    mov    gameBoardBmp, eax
+    invoke LoadBitmap, hInstance, background
+    mov    backgroundBmp, eax
+    invoke LoadBitmap, hInstance, player
+    mov    playerBmp , eax
 
     invoke WinMain, hInstance, NULL, arguments, SW_SHOWDEFAULT
     invoke ExitProcess, eax
@@ -118,12 +127,18 @@ start:
         LOCAL rect   :RECT; RECT 結構定義了矩形左上角和右下角的坐標。
 
         ; 選擇 hBmp 作為背景圖片
-        invoke SelectObject, _hMemDC2, gameBoardBmp
+        invoke SelectObject, _hMemDC2, backgroundBmp
         
         ; 將 _hMemDC2 中的圖片複製到 _hMemDC，顯示背景
         invoke BitBlt, _hMemDC, 0, 0, 1792, 1024, _hMemDC2, 0, 0, SRCCOPY
         ret
     paintBackground endp
+
+    paintPlayer proc _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC 
+        invoke SelectObject, _hMemDC2, playerBmp
+        invoke TransparentBlt, _hMemDC, playerX, playerY,25, 25, _hMemDC2,0, 0, 25 ,25, CREF_TRANSPARENT
+        ret
+    paintPlayer endp
 
     screenUpdate proc
         LOCAL hMemDC:HDC
@@ -143,6 +158,7 @@ start:
         invoke SelectObject, hMemDC, hBitmap
 
         invoke paintBackground, hDC, hMemDC, hMemDC2
+        invoke paintPlayer, hDC, hMemDC, hMemDC2
         invoke BitBlt, hDC, 0, 0, 1792, 1024, hMemDC, 0, 0, SRCCOPY
 
         invoke DeleteDC, hMemDC     ;DeleteDC 函數刪除指定的設備內容 (DC)。
@@ -152,7 +168,6 @@ start:
         ret
     screenUpdate endp   
 
-    ;具有4個參數的WinMain函數，已在第25行聲明過prototype
     ; 把 WinMain 程序放在這裡來創建窗口本身
     WinMain proc hInst     :DWORD,
                 hPrevInst :DWORD,
@@ -230,21 +245,47 @@ start:
 
     ;處理消息的函數
     WndProc proc hWin   :DWORD,
-            uMsg   :DWORD,
-            wParam :DWORD,
-            lParam :DWORD
+        uMsg   :DWORD,
+        wParam :DWORD,
+        lParam :DWORD
 
-    LOCAL hDC    :DWORD
-    LOCAL Ps     :PAINTSTRUCT
-    LOCAL rect   :RECT
-    LOCAL Font   :DWORD
-    LOCAL Font2  :DWORD
-    LOCAL hOld   :DWORD
+        LOCAL hDC    :DWORD
+        LOCAL Ps     :PAINTSTRUCT
+        LOCAL rect   :RECT
+        LOCAL Font   :DWORD
+        LOCAL Font2  :DWORD
+        LOCAL hOld   :DWORD
+        LOCAL memDC  :DWORD
 
-    LOCAL memDC  :DWORD
-        .if uMsg == WM_PAINT    ;當系統或其他應用程序請求繪製應用程序窗口的一部分時，會發送 WM_PAINT 消息
+        .if uMsg == WM_CREATE
+            mov     playerX, 250
+            mov     playerY, 250
+        .elseif uMsg == WM_PAINT    ;當系統或其他應用程序請求繪製應用程序窗口的一部分時，會發送 WM_PAINT 消息
             invoke screenUpdate
-
+        .elseif uMsg == WM_ERASEBKGND
+            mov eax, 1
+        .elseif uMsg == WM_KEYDOWN
+            .if wParam == VK_W
+                .if playerY > 20
+                  sub playerY, 10
+                .endif
+            .endif                 
+            .if wParam == VK_S
+                .if playerY < 934
+                  add playerY, 10
+                .endif
+            .endif          
+            .if wParam == VK_A
+                .if playerX > 20
+                  sub playerX, 10
+                .endif
+            .endif
+            .if wParam == VK_D
+                .if playerX < 1712
+                  add playerX, 10
+                .endif
+            .endif 
+            invoke InvalidateRect, hWnd, NULL, TRUE
         .elseif uMsg == WM_DESTROY                                        ; if the user closes our window 
             invoke PostQuitMessage,NULL          
         .else
