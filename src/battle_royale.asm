@@ -94,6 +94,11 @@ include battle_royale.inc ;函式庫
     playerY          dd  250     ; 玩家位置
     playerX          dd  250 
 
+    keyWPressed dd 0
+    keyAPressed dd 0
+    keySPressed dd 0
+    keyDPressed dd 0
+
 ;尚未賦值的變數聲明
 .data?
     hInstance   HINSTANCE ? ; 窗口實例
@@ -167,6 +172,35 @@ start:
         invoke EndPaint, hWnd, ADDR paintstruct ;EndPaint 函數標記指定窗口中的繪製結束。每次調用 BeginPaint 函數時都需要此函數，但僅在繪製完成後才需要
         ret
     screenUpdate endp   
+
+    updatePlayerPosition PROC
+        mov eax, keyWPressed
+        .if eax != 0
+            .if playerY > 20
+                sub playerY, 10
+            .endif
+        .endif
+        mov eax, keySPressed
+        .if eax != 0
+            .if playerY < 934
+                add playerY, 10
+            .endif
+        .endif
+        mov eax, keyAPressed
+        .if eax != 0
+            .if playerX > 20
+                sub playerX, 10
+            .endif
+        .endif
+        mov eax, keyDPressed
+        .if eax != 0
+            .if playerX < 1712
+                add playerX, 10
+            .endif
+        .endif
+        invoke InvalidateRect, hWnd, NULL, TRUE
+    ret
+    updatePlayerPosition ENDP
 
     ; 把 WinMain 程序放在這裡來創建窗口本身
     WinMain proc hInst     :DWORD,
@@ -266,26 +300,26 @@ start:
             mov eax, 1
         .elseif uMsg == WM_KEYDOWN
             .if wParam == VK_W
-                .if playerY > 20
-                  sub playerY, 10
-                .endif
-            .endif                 
-            .if wParam == VK_S
-                .if playerY < 934
-                  add playerY, 10
-                .endif
-            .endif          
-            .if wParam == VK_A
-                .if playerX > 20
-                  sub playerX, 10
-                .endif
+                mov keyWPressed, 1
+            .elseif wParam == VK_S
+                mov keySPressed, 1
+            .elseif wParam == VK_A
+                mov keyAPressed, 1
+            .elseif wParam == VK_D
+                mov keyDPressed, 1
             .endif
-            .if wParam == VK_D
-                .if playerX < 1712
-                  add playerX, 10
-                .endif
-            .endif 
-            invoke InvalidateRect, hWnd, NULL, TRUE
+            invoke updatePlayerPosition
+        .elseif uMsg == WM_KEYUP
+            .if wParam == VK_W
+                mov keyWPressed, 0
+            .elseif wParam == VK_S
+                mov keySPressed, 0
+            .elseif wParam == VK_A
+                mov keyAPressed, 0
+            .elseif wParam == VK_D
+                mov keyDPressed, 0
+            .endif        
+            invoke updatePlayerPosition
         .elseif uMsg == WM_DESTROY                                        ; if the user closes our window 
             invoke PostQuitMessage,NULL          
         .else
