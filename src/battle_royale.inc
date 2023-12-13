@@ -44,3 +44,10 @@
       INCLUDELIB \Masm32\Lib\masm32.lib
       INCLUDELIB \Masm32\Lib\cryptdll.lib
       INCLUDE \MASM32\INCLUDE\cryptdll.inc
+
+
+zombieObj STRUCT
+    x       DWORD ?
+    y       DWORD ?
+    active  DWORD ? 
+zombieObj ENDS

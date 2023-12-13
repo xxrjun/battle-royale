@@ -82,14 +82,14 @@ include battle_royale.inc ;函式庫
     background  equ 100
     player      equ 1001
     zombie      equ 1002
-
+    MAX_ZOMBIES equ 3
     CREF_TRANSPARENT  EQU 00FFFFFFh
 ;帶有賦值的變數聲明
 .data
     windowClassName     db 'Window',0
     szDisplayName         db 'Battle Royale',0
     paintstruct   PAINTSTRUCT <>
-    buffer        db 256 dup(0)
+    zombieInfoBuffer        db 256 dup(0)
 
     backgroundBmp    dd  0      ;圖片檔
     playerBmp        dd  0
@@ -97,14 +97,16 @@ include battle_royale.inc ;函式庫
     playerX          dd  250     ; 玩家位置
     playerY          dd  250 
     playerSpeed      dd  10
-    zombieX          dd  550     ; 殭屍位置
-    zombieY          dd  550 
+    activeZombieInitX          dd  550     ; 殭屍位置
+    activeZombieInitY          dd  550 
     zombieSpeed      dd  5
 
     keyWPressed dd 0
     keyAPressed dd 0
     keySPressed dd 0
     keyDPressed dd 0
+
+    zombies zombieObj MAX_ZOMBIES dup({0, 0, 0})
 
 ;尚未賦值的變數聲明
 .data?
@@ -156,9 +158,75 @@ start:
         ret
     paintPlayer endp
 
-    paintZombie proc _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC 
-        invoke SelectObject, _hMemDC2, zombieBmp
-        invoke TransparentBlt, _hMemDC, zombieX, zombieY,25, 25, _hMemDC2,0, 0, 25 ,25, CREF_TRANSPARENT
+    paintZombie proc _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
+        LOCAL zombieX :DWORD
+        LOCAL zombieY :DWORD
+
+        ; mov ecx, 0                  ; 初始化計數器
+        ; lea ebx, zombies            ; 獲取殭屍陣列的地址
+        ; DrawZombiesLoop:
+        ;     cmp [ebx + zombieObj.active], 0
+        ;     je SkipZombie           ; 如果殭屍未激活，跳過繪製
+
+        ;     ; 獲取殭屍的位置
+        ;     mov eax, [ebx + zombieObj.x] ; 將殭屍的 x 坐標移動到 eax 寄存器
+        ;     mov zombieX, eax           ; 再將 eax 寄存器的值移動到 zombieX 變數
+
+        ;     mov eax, [ebx + zombieObj.y] ; 將殭屍的 y 坐標移動到 eax 寄存器
+        ;     mov zombieY, eax           ; 再將 eax 寄存器的值移動到 zombieY 變數
+
+        ;     ; 繪製殭屍
+        ;     invoke SelectObject, _hMemDC2, zombieBmp
+        ;     invoke TransparentBlt, _hMemDC, zombieX, zombieY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+
+        ;     SkipZombie:
+        ;     add ebx, TYPE zombieObj ; 移動到下一個殭屍
+        ;     inc ecx
+        ;     cmp ecx, MAX_ZOMBIES
+        ;     jl DrawZombiesLoop      ; 繼續循環直到處理完所有殭屍
+        lea ebx, zombies    ; 獲取殭屍陣列的地址
+
+        ; 繪製第一個殭屍
+        cmp [ebx + zombieObj.active], 0
+        jne DrawFirstZombie
+        jmp SkipFirstZombie
+        DrawFirstZombie:
+            mov eax, [ebx + zombieObj.x]
+            mov zombieX, eax
+            mov eax, [ebx + zombieObj.y]
+            mov zombieY, eax
+            invoke SelectObject, _hMemDC2, zombieBmp
+            invoke TransparentBlt, _hMemDC, zombieX, zombieY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+        SkipFirstZombie:
+
+        ; 繪製第二個殭屍
+        add ebx, TYPE zombieObj
+        cmp [ebx + zombieObj.active], 0
+        jne DrawSecondZombie
+        jmp SkipSecondZombie
+        DrawSecondZombie:
+            mov eax, [ebx + zombieObj.x]
+            mov zombieX, eax
+            mov eax, [ebx + zombieObj.y]
+            mov zombieY, eax
+            invoke SelectObject, _hMemDC2, zombieBmp
+            invoke TransparentBlt, _hMemDC, zombieX, zombieY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+        SkipSecondZombie:
+
+        ; 繪製第三個殭屍
+        add ebx, TYPE zombieObj
+        cmp [ebx + zombieObj.active], 0
+        jne DrawThirdZombie
+        jmp SkipThirdZombie
+        DrawThirdZombie:
+            mov eax, [ebx + zombieObj.x]
+            mov zombieX, eax
+            mov eax, [ebx + zombieObj.y]
+            mov zombieY, eax
+            invoke SelectObject, _hMemDC2, zombieBmp
+            invoke TransparentBlt, _hMemDC, zombieX, zombieY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+        SkipThirdZombie:        
+
         ret
     paintZombie endp
 
@@ -219,6 +287,55 @@ start:
         invoke InvalidateRect, hWnd, NULL, TRUE
     ret
     updatePlayerPosition ENDP
+
+formatZombiesInfo PROC
+    LOCAL zombieX :DWORD
+    LOCAL zombieY :DWORD
+    LOCAL isActive:DWORD
+    LOCAL bufferPos:DWORD
+    LOCAL formattedLength:DWORD
+
+    mov ecx, 0                   ; 初始化計數器
+    lea ebx, zombies             ; 獲取殭屍陣列的地址
+    lea edi, zombieInfoBuffer    ; 獲取資訊緩衝區的地址
+    mov bufferPos, edi           ; 記住緩衝區的起始位置
+
+    FormatLoop:
+        cmp ecx, MAX_ZOMBIES
+        jge EndFormat            ; 如果處理完所有殭屍，結束循環
+
+        ; 從殭屍陣列中獲取資訊
+        mov eax, [ebx + zombieObj.x]
+        mov zombieX, eax
+        mov eax, [ebx + zombieObj.y]
+        mov zombieY, eax
+        mov eax, [ebx + zombieObj.active]
+        mov isActive, eax
+
+        ; 格式化到緩衝區中
+        cmp ecx, 2
+        je  ToWrite
+        jmp Skip
+
+        ToWrite:
+        invoke wsprintf, addr zombieInfoBuffer, chr$("X:%d,Y:%d,A:%d"), zombieX, zombieY, isActive
+        mov formattedLength, eax   ; 獲取格式化字串的長度
+
+        Skip:
+        ; 更新緩衝區位置
+        add edi, 30   ; 根據格式化字串長度更新緩衝區指針
+        add ebx, SIZEOF zombieObj    ; 移動到下一個殭屍
+        inc ecx
+        jmp FormatLoop
+
+    EndFormat:
+        ; 在緩衝區的最後添加結束字元
+        mov byte ptr [edi], 0
+
+    ret
+formatZombiesInfo ENDP
+
+
 
     ; 把 WinMain 程序放在這裡來創建窗口本身
     WinMain proc hInst     :DWORD,
@@ -312,13 +429,39 @@ start:
         .if uMsg == WM_CREATE
             mov     hEventStart, eax
             mov eax, offset ThreadProc
-            invoke CreateThread, NULL, NULL, eax, NULL, NORMAL_PRIORITY_CLASS, ADDR threadID  
+            invoke CreateThread, NULL, NULL, eax, NULL, NORMAL_PRIORITY_CLASS, ADDR threadID 
+            invoke SetTimer, hWin, 1, 3000, NULL ; 設置計時器，ID為1，時間為10000毫秒（10秒）
+        .elseif uMsg == WM_TIMER
+            .if wParam == 1
+                ;遍歷十隻殭屍，將一隻未激活的殭屍激活，如果十隻都被激活則不做事
+                mov ecx, 0
+                lea ebx, zombies
+                ActivateZombieLoop:
+                    cmp [ebx + zombieObj.active], 0
+                    je ActivateZombie
+
+                    add ebx, TYPE zombieObj
+                    inc ecx
+                    cmp ecx, MAX_ZOMBIES
+                    jl ActivateZombieLoop
+                jmp EndActivateZombie
+
+                ActivateZombie:
+                    ; 激活殭屍並並設定初始值位置
+                    mov [ebx + zombieObj.x], 550
+                    mov [ebx + zombieObj.y], 550
+                    mov [ebx + zombieObj.active], 1
+                EndActivateZombie:
+            .endif 
         .elseif uMsg == WM_PAINT    ;當系統或其他應用程序請求繪製應用程序窗口的一部分時，會發送 WM_PAINT 消息
             invoke screenUpdate
         .elseif uMsg == WM_ERASEBKGND ;避免畫面更新閃爍
             mov eax, 1
         .elseif uMsg == WM_KEYDOWN
-            .if wParam == VK_W
+            .if wParam == VK_I
+                invoke formatZombiesInfo
+                invoke MessageBox, hWin, ADDR zombieInfoBuffer, ADDR szDisplayName, MB_OK
+            .elseif wParam == VK_W
                 mov keyWPressed, 1
             .elseif wParam == VK_S
                 mov keySPressed, 1
@@ -349,31 +492,62 @@ start:
         ret
     WndProc endp
 
+moveZombies PROC
+    LOCAL zombieX:DWORD
+    LOCAL zombieY:DWORD
+
+    mov ecx, 0                  ; 初始化計數器
+    lea ebx, zombies            ; 獲取殭屍陣列的地址
+    MoveZombiesLoop:
+        cmp [ebx + zombieObj.active], 0
+        je SkipZombieInLoop     ; 如果殭屍未激活，跳過此殭屍
+
+        ; 獲取殭屍的位置
+        mov eax, [ebx + zombieObj.x] ; 將殭屍的 x 坐標移動到 eax 寄存器
+        mov [zombieX], eax           ; 再將 eax 寄存器的值移動到 zombieX 變數
+
+        mov eax, [ebx + zombieObj.y] ; 將殭屍的 y 坐標移動到 eax 寄存器
+        mov [zombieY], eax           ; 再將 eax 寄存器的值移動到 zombieY 變數
+
+
+        ; 殭屍 X 軸的移動
+        mov edx, zombieX
+        .if playerX > edx
+            add zombieX, 5
+        .elseif playerX < edx
+            sub zombieX, 5
+        .endif
+
+        ; 殭屍 Y 軸的移動
+        mov edx, zombieY
+        .if playerY > edx
+            add zombieY, 5
+        .elseif playerY < edx
+            sub zombieY, 5
+        .endif
+
+        ; 更新殭屍的位置
+        mov eax, zombieX
+        mov [ebx + zombieObj.x], eax
+        mov eax, zombieY
+        mov [ebx + zombieObj.y], eax
+
+        SkipZombieInLoop:
+        add ebx, TYPE zombieObj ; 移動到下一個殭屍
+        inc ecx
+        cmp ecx, MAX_ZOMBIES
+        jl MoveZombiesLoop      ; 繼續循環直到處理完所有殭屍
+
+    ret
+moveZombies ENDP
+
+
 ThreadProc PROC USES ecx Param:DWORD
   ; 線程循環
   ThreadLoop:
     invoke Sleep, 100  ; 等待 100 毫秒
 
-      ; 殭屍 X 軸的移動
-      mov edx, zombieX
-      .if playerX > edx
-        mov edx, zombieSpeed
-        add   zombieX, edx
-        mov edx, zombieX
-      .elseif playerX < edx
-        mov edx, zombieSpeed
-        sub zombieX, edx
-      .endif
-
-      ; 殭屍 Y 軸的移動
-      mov edx, zombieY
-      .if playerY > edx
-        mov edx, zombieSpeed
-        add   zombieY, edx
-      .elseif playerY < edx
-        mov edx, zombieSpeed
-        sub zombieY, edx
-      .endif
+    invoke moveZombies
 
     invoke SendMessage, hWnd, WM_FINISH, NULL, NULL
 
