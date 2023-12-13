@@ -1,5 +1,5 @@
 ;=====================================================================
-;用組合語言開發九子棋 | 08/12/2023
+;用組合語言開發大逃殺 | 08/12/2023
 ;=====================================================================
 
 ;=====================================================================
@@ -78,8 +78,10 @@ include battle_royale.inc ;函式庫
 ; ------------------------------------------------------------------------
 ;常數宣告
 .const
+    WM_FINISH equ WM_USER+100h
     background  equ 100
     player      equ 1001
+    zombie      equ 1002
 
     CREF_TRANSPARENT  EQU 00FFFFFFh
 ;帶有賦值的變數聲明
@@ -91,8 +93,13 @@ include battle_royale.inc ;函式庫
 
     backgroundBmp    dd  0      ;圖片檔
     playerBmp        dd  0
-    playerY          dd  250     ; 玩家位置
-    playerX          dd  250 
+    zombieBmp        dd  0
+    playerX          dd  250     ; 玩家位置
+    playerY          dd  250 
+    playerSpeed      dd  10
+    zombieX          dd  550     ; 殭屍位置
+    zombieY          dd  550 
+    zombieSpeed      dd  5
 
     keyWPressed dd 0
     keyAPressed dd 0
@@ -103,6 +110,8 @@ include battle_royale.inc ;函式庫
 .data?
     hInstance   HINSTANCE ? ; 窗口實例
     arguments  LPSTR ?     ; 應用程式參數
+    threadID    DWORD ? 
+    hEventStart HANDLE ?
     
     hWnd HWND ?
 ; #########################################################################
@@ -123,6 +132,8 @@ start:
     mov    backgroundBmp, eax
     invoke LoadBitmap, hInstance, player
     mov    playerBmp , eax
+    invoke LoadBitmap, hInstance, zombie
+    mov    zombieBmp , eax
 
     invoke WinMain, hInstance, NULL, arguments, SW_SHOWDEFAULT
     invoke ExitProcess, eax
@@ -145,6 +156,12 @@ start:
         ret
     paintPlayer endp
 
+    paintZombie proc _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC 
+        invoke SelectObject, _hMemDC2, zombieBmp
+        invoke TransparentBlt, _hMemDC, zombieX, zombieY,25, 25, _hMemDC2,0, 0, 25 ,25, CREF_TRANSPARENT
+        ret
+    paintZombie endp
+
     screenUpdate proc
         LOCAL hMemDC:HDC
         LOCAL hMemDC2:HDC
@@ -164,6 +181,7 @@ start:
 
         invoke paintBackground, hDC, hMemDC, hMemDC2
         invoke paintPlayer, hDC, hMemDC, hMemDC2
+        invoke paintZombie, hDC, hMemDC, hMemDC2
         invoke BitBlt, hDC, 0, 0, 1792, 1024, hMemDC, 0, 0, SRCCOPY
 
         invoke DeleteDC, hMemDC     ;DeleteDC 函數刪除指定的設備內容 (DC)。
@@ -292,11 +310,12 @@ start:
         LOCAL memDC  :DWORD
 
         .if uMsg == WM_CREATE
-            mov     playerX, 250
-            mov     playerY, 250
+            mov     hEventStart, eax
+            mov eax, offset ThreadProc
+            invoke CreateThread, NULL, NULL, eax, NULL, NORMAL_PRIORITY_CLASS, ADDR threadID  
         .elseif uMsg == WM_PAINT    ;當系統或其他應用程序請求繪製應用程序窗口的一部分時，會發送 WM_PAINT 消息
             invoke screenUpdate
-        .elseif uMsg == WM_ERASEBKGND
+        .elseif uMsg == WM_ERASEBKGND ;避免畫面更新閃爍
             mov eax, 1
         .elseif uMsg == WM_KEYDOWN
             .if wParam == VK_W
@@ -320,6 +339,8 @@ start:
                 mov keyDPressed, 0
             .endif        
             invoke updatePlayerPosition
+        .elseif uMsg == WM_FINISH
+            invoke InvalidateRect, hWnd, NULL, TRUE ;;addr rect, TRUE
         .elseif uMsg == WM_DESTROY                                        ; if the user closes our window 
             invoke PostQuitMessage,NULL          
         .else
@@ -328,7 +349,46 @@ start:
         ret
     WndProc endp
 
+ThreadProc PROC USES ecx Param:DWORD
+  ; 線程循環
+  ThreadLoop:
+    invoke Sleep, 100  ; 等待 100 毫秒
 
+      ; 殭屍 X 軸的移動
+      mov edx, zombieX
+      .if playerX > edx
+        mov edx, zombieSpeed
+        add   zombieX, edx
+        mov edx, zombieX
+      .elseif playerX < edx
+        mov edx, zombieSpeed
+        sub zombieX, edx
+      .endif
+
+      ; 殭屍 Y 軸的移動
+      mov edx, zombieY
+      .if playerY > edx
+        mov edx, zombieSpeed
+        add   zombieY, edx
+      .elseif playerY < edx
+        mov edx, zombieSpeed
+        sub zombieY, edx
+      .endif
+
+    invoke SendMessage, hWnd, WM_FINISH, NULL, NULL
+
+    ; 檢查是否需要退出線程
+    ; （這需要一個額外的機制來設置某個全局變量，以指示線程何時應該結束）
+    ; 例如:
+    ; mov eax, [bThreadShouldExit]
+    ; cmp eax, 1
+    ; je ExitThreadLoop
+
+    jmp ThreadLoop
+
+  ExitThreadLoop:
+  ret
+ThreadProc ENDP
 
     ;=====================================================
 ;原始碼結束
