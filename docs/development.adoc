@@ -29,6 +29,19 @@ ____
 * link:https://huggingface.co/spaces/facebook/MusicGen[MusicGen] - 音樂生成工具，用於製作遊戲音效
 * link:https://mixkit.co/free-sound-effects/game/[Mixkit] - 遊戲音效素材
 
+== 使用 Makefile 編譯
+
+[quote]
+____
+使用 Makefile 編譯，請先安裝 MASM32
+____
+
+[source,shell]
+----
+make # 編譯
+make clean # 清理
+----
+
 == 遊戲設計
 
 [quote]
