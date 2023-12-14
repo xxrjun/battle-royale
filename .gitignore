@@ -60,7 +60,7 @@ Thumbs.db
 *.cache
 *.ilk
 *.log
-[Bb]in
+# [Bb]in
 [Dd]ebug*/
 *.sbr
 obj/
@@ -68,7 +68,7 @@ obj/
 _ReSharper*/
 [Tt]est[Rr]esult*
 .#*
-*.bin
+# *.bin
 .cproject
 .metadata/
 .project
@@ -78,7 +78,7 @@ build/
 # CMake
 CMakeCache.txt
 CMakeFiles
-Makefile
+# Makefile
 cmake_install.cmake
 install_manifest.txt
 
@@ -210,3 +210,6 @@ build/
 *~
 node_modules
 template\ assembly
+
+# vscode
+.vscode/*
