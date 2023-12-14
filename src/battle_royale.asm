@@ -100,6 +100,7 @@ include battle_royale.inc ;函式庫
     activeZombieInitX          dd  550     ; 殭屍位置
     activeZombieInitY          dd  550 
     zombieSpeed      dd  5
+    beenHit          dd  0
 
     keyWPressed dd 0
     keyAPressed dd 0
@@ -541,6 +542,51 @@ moveZombies PROC
     ret
 moveZombies ENDP
 
+checkZombieCollision PROC
+    LOCAL zombieX:DWORD
+    LOCAL zombieY:DWORD
+
+    mov ecx, 0                   ; 初始化計數器
+    lea ebx, zombies             ; 獲取殭屍陣列的地址
+    CheckCollisionLoop:
+        cmp [ebx + zombieObj.active], 0
+        je SkipZombieInCollisionCheck    ; 如果殭屍未激活，跳過此殭屍
+
+        ; 獲取殭屍的位置
+        mov eax, [ebx + zombieObj.x]
+        mov [zombieX], eax
+        mov eax, [ebx + zombieObj.y]
+        mov [zombieY], eax
+
+        ; 判斷 X 座標是否重疊
+        mov eax, playerX;eax存判斷boundary
+        mov edx, zombieX
+        add edx, 25     ;edx存判斷子(殭屍座標+殭屍size)
+        .if edx > eax;X small boundary
+            add eax, 50
+            .if edx < eax;X large boundary
+                ; 判斷 Y 座標是否重疊
+                mov eax, playerY
+                mov edx, zombieY
+                add edx, 25
+                .if edx > eax;Y small boundary
+                    add eax, 50
+                    .if edx < eax;Y large boundary
+                        mov beenHit, 1; 發生碰撞
+                        ;invoke MessageBox, hWnd, ADDR zombieInfoBuffer, ADDR szDisplayName, MB_OK
+                    .endif
+                .endif
+            .endif
+        .endif
+
+        SkipZombieInCollisionCheck:
+        add ebx, TYPE zombieObj     ; 移動到下一個殭屍
+        inc ecx
+        cmp ecx, MAX_ZOMBIES
+        jl CheckCollisionLoop        ; 繼續循環直到處理完所有殭屍
+
+    ret
+checkZombieCollision ENDP
 
 ThreadProc PROC USES ecx Param:DWORD
   ; 線程循環
@@ -548,6 +594,7 @@ ThreadProc PROC USES ecx Param:DWORD
     invoke Sleep, 100  ; 等待 100 毫秒
 
     invoke moveZombies
+    invoke checkZombieCollision
 
     invoke SendMessage, hWnd, WM_FINISH, NULL, NULL
 
@@ -567,3 +614,5 @@ ThreadProc ENDP
     ;=====================================================
 ;原始碼結束
 end start
+
+
