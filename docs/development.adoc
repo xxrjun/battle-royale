@@ -1,0 +1,109 @@
+= Battle Royale Development Docs
+xxrjun <https://github.com/xxrjun>
+:revnumber: v0.1
+:revdate: Dec 14, 2023
+:revremark: Initialize development docs
+:icons: font
+:toc:
+:toclevels: 3
+:sectnums:
+:sectnumlevels: 5
+:version-label: Edition
+
+[quote]
+____
+Development documentation for the Battle Royale game project on x86-32 platform.
+____
+
+== 繳交
+
+* [ ] Project Code
+* [ ] PPT
+* [ ] Report: README and PDF
+
+== 開發工具
+
+* link:https://www.masm32.com/index.htm[MASM32] - 編譯器
+* link:https://chat.openai.com/[ChatGPT] with GPT4.0 - 協作工具，詢問程式碼、開發問題等
+* link:https://openai.com/dall-e-3[DALL·E] - 圖片生成工具，用於製作遊戲素材
+* link:https://huggingface.co/spaces/facebook/MusicGen[MusicGen] - 音樂生成工具，用於製作遊戲音效
+* link:https://mixkit.co/free-sound-effects/game/[Mixkit] - 遊戲音效素材
+
+== 遊戲設計
+
+[quote]
+____
+別人恐懼我貪婪
+____
+
+* *遊戲模式：* 單人／雙人遊戲
+* *目標：* 在限定時間內存活，並爭取到最多寶石
+* *遊戲規則：*
+** *遊戲時間*
+*** 每局遊戲持續一分鐘
+
+* *角色設定*
+** *倖存者：* 玩家操控的角色。單人遊戲時使用 WASD 鍵控制，雙人遊戲時第二位玩家使用方向鍵控制。倖存者的目標是躲避殭屍，收集寶石。
+** *殭屍：* 皆由電腦控制，遊戲開始時有一隻，每隔二十秒會增加一隻，如果倖存者被殭屍碰到，將變成殭屍，可以追逐剩餘的倖存者，操作鍵不變。
+
+* *遊戲結束條件*
+** 所有倖存者被轉化為殭屍。
+*** 遊戲時間結束。此時，顯示獲得最高分數的倖存者。
+
+* *掉落道具*
+** 鞋子：可以提升倖存者的移動速度。
+
+* *遊戲流程：*
+** *首頁*
+*** 選擇單人或雙人遊戲。
+*** 開始遊戲按鈕，進入遊戲畫面。
+
+* *遊玩畫面*
+** 設計為廢墟風格的長方形空間。殭屍會追逐倖存者，倖存者要盡可能取得越多寶石。
+
+* *結束畫面*
+** 顯示最終結果
+*** 零人存活 ⇒ 世界末日
+*** 得分最高的倖存者 ⇒ 恭喜暫時活下來了
+** 提供”重新開始”和“結束遊戲”的選項。
+
+== 專案架構
+
+[quote]
+____
+預期結構大致如下，可能會有所變動
+____
+
+[source,shell]
+----
+battle-royale/
+│
+├── src/                    # 源代碼目錄
+│   └── battle_royale.asm   # 工具和公用函數
+│
+├── bin/                    # 編譯後的二進制文件和可執行文件
+│   └── battle_royle.exe    # 可執行文件
+│
+├── docs/                   # 文件目錄
+│   └── development.md      # 開發相關文檔
+│
+├── assets/                 # 資源文件，如圖像、音效等
+│   ├── docs/               # 文件用圖像 
+│   ├── images/             # 遊戲用圖像
+│   └── sounds/             # 遊戲用音效
+│
+├── lib/                    # 外部庫和依賴
+├── Makefile                # 編譯腳本
+├── README.md               # 專案說明文件
+└── .gitignore              # Git忽略文件配置
+----
+
+== 參考資料
+
+* link:https://learn.microsoft.com/en-us/windows/win32/api/_winmsg/[Programming reference for the Win32 API - Windows and Messages]
+** link:https://learn.microsoft.com/en-us/windows/win32/api/winbase[winbase.h header]
+** link:https://learn.microsoft.com/en-us/windows/win32/api/winuser[winuser.h header]
+
+* link:https://learn.microsoft.com/en-us/cpp/assembler/masm/directives-reference?view=msvc-170[MASM Directives Reference]
+
+== 開發進度

@@ -1,0 +1,61 @@
+= Battle Royale
+xxrjun <https://github.com/xxrjun>
+:toc:
+:toc-title: 目錄
+:toclevels: 3
+:icons: font
+:source-highlighter: rouge
+:linkattrs:
+:imagesdir: ./assets/docs
+
+image:https://img.shields.io/github/contributors/xxrjun/battle-royale.svg?style=for-the-badge[link="https://github.com/xxrjun/battle-royale/graphs/contributors"]
+image:https://img.shields.io/github/forks/xxrjun/battle-royale.svg?style=for-the-badge[link="https://github.com/xxrjun/battle-royale/network/members"]
+image:https://img.shields.io/github/stars/xxrjun/battle-royale.svg?style=for-the-badge[link="https://github.com/xxrjun/battle-royale/stargazers"]
+
+[quote, "MIS 109403019 鄒翔宇, MIS 109403021 傅珩洵"]
+____
+NCU Assembly Language and System Programming, Final Project, Fall 2023
+____
+
+// Language toggle links
+// @TODO
+// link:./README.md[English] | link:./README_zh.md[中文]
+
+[.text-center]
+image:banner_dalle.png[Logo,width=800,height=400]
+
+[.text-center]
+== Battle Royale Game
+
+[.text-center]
+link:./docs/development.adoc[Explore the development docs »].
+
+
+== 開發工具
+
+* *編譯器：* link:https://www.masm32.com/index.htm[MASM32]
+* *鏈接器：*
+* *編輯器：* link:https://code.visualstudio.com/[Visual Studio Code], link:https://www.masm32.com/[MASM Editor]
+
+== 遊戲規則
+
+// @TODO: Add game design
+
+== 開始遊戲
+
+// @TODO
+
+== 遊戲流程
+
+// @TODO: Add flowchart
+
+== 貢獻者
+
+[.table, options="header,autowidth", cols="2*", grid="cols", role="center"]
+|===
+| image:https://avatars.githubusercontent.com/u/40348319?v=4[xxrjun,150,150,link=https://github.com/xxrjun] 
+| image:https://avatars.githubusercontent.com/u/92322412?v=4[FuHarrison,150,150,link=https://github.com/FuHarrison]
+
+| link:https://github.com/xxrjun[xxrjun,window=_blank]
+| link:https://github.com/FuHarrison[FuHarrison,window=_blank]
+|===
