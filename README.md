@@ -31,7 +31,7 @@
   <h3 align="center">Battle Royale Game</h3>
 
   <p align="center">
-     NCU Assembly | Nov 2023 | Final Project 
+     NCU Assembly | Fall 2023 | Final Project 
     <br />
     <a href="./docs/development.md"><strong>Explore the devlopement docs »</strong></a>
     <br />
