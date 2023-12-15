@@ -26,7 +26,7 @@ ____
 === 程式開發
 
 * link:https://www.masm32.com/index.htm[MASM32 SDK] - 工具集，包含 assembler、editor、linker 等工具
-** Assembler: `ml.exe` 或 `ml64.exe` 用於將組合語言源代碼轉換成機器代碼。
+** Assembler: `ml.exe` 用於將組合語言源代碼轉換成機器代碼。
 ** Linker: `link.exe` 用於將組譯器產生的對象檔案連結成可執行檔案。
 * link:https://code.visualstudio.com/[Visual Studio Code] 或 MASM32 SDK 中附帶的 link:https://www.masm32.com/[MASM Editor] - 編輯器，用於編寫組合語言程式碼
 * link:https://chat.openai.com/[ChatGPT] with GPT4.0 - 協作工具，詢問程式碼、開發問題等
@@ -126,6 +126,4 @@ battle-royale/
 ** link:https://learn.microsoft.com/en-us/windows/win32/api/winuser[winuser.h header]
 
 * link:https://learn.microsoft.com/en-us/cpp/assembler/masm/directives-reference?view=msvc-170[MASM Directives Reference]
-
-== 開發進度
 
