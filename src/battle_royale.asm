@@ -10,7 +10,7 @@
 ;====================================================================
 
 
-.486
+.686
 .model flat, stdcall  
 option casemap	:none	;大小寫區分
 
@@ -82,6 +82,7 @@ include battle_royale.inc ;函式庫
     background  equ 100
     player      equ 1001
     zombie      equ 1002
+    gadget      equ 1003
     MAX_ZOMBIES equ 3
     CREF_TRANSPARENT  EQU 00FFFFFFh
 ;帶有賦值的變數聲明
@@ -94,6 +95,7 @@ include battle_royale.inc ;函式庫
     backgroundBmp    dd  0      ;圖片檔
     playerBmp        dd  0
     zombieBmp        dd  0
+    gadgetBmp        dd  0
     playerX          dd  250     ; 玩家位置
     playerY          dd  250 
     playerSpeed      dd  10
@@ -101,6 +103,10 @@ include battle_royale.inc ;函式庫
     activeZombieInitY          dd  550 
     zombieSpeed      dd  5
     beenHit          dd  0
+
+    gadgetX         dd  0
+    gadgetY         dd  0
+    gadgetType      dd  0
 
     keyWPressed dd 0
     keyAPressed dd 0
@@ -115,8 +121,8 @@ include battle_royale.inc ;函式庫
     arguments  LPSTR ?     ; 應用程式參數
     threadID    DWORD ? 
     hEventStart HANDLE ?
-    
     hWnd HWND ?
+
 ; #########################################################################
 ; ------------------------------------------------------------------------
 ; This is the start of the code section where executable code begins. This
@@ -137,6 +143,8 @@ start:
     mov    playerBmp , eax
     invoke LoadBitmap, hInstance, zombie
     mov    zombieBmp , eax
+    invoke LoadBitmap, hInstance, gadget
+    mov    gadgetBmp , eax
 
     invoke WinMain, hInstance, NULL, arguments, SW_SHOWDEFAULT
     invoke ExitProcess, eax
@@ -144,11 +152,7 @@ start:
     ;繪製圖片的函數
     paintBackground proc _hdc:HDC,_hMemDC:HDC, _hMemDC2:HDC
         LOCAL rect   :RECT; RECT 結構定義了矩形左上角和右下角的坐標。
-
-        ; 選擇 hBmp 作為背景圖片
         invoke SelectObject, _hMemDC2, backgroundBmp
-        
-        ; 將 _hMemDC2 中的圖片複製到 _hMemDC，顯示背景
         invoke BitBlt, _hMemDC, 0, 0, 1792, 1024, _hMemDC2, 0, 0, SRCCOPY
         ret
     paintBackground endp
@@ -231,6 +235,12 @@ start:
         ret
     paintZombie endp
 
+    paintGadget proc _hdc:HDC,_hMemDC:HDC, _hMemDC2:HDC
+        invoke SelectObject, _hMemDC2, gadgetBmp
+        invoke TransparentBlt, _hMemDC, gadgetX, gadgetY,25, 25, _hMemDC2,0, 0, 25 ,25, CREF_TRANSPARENT
+        ret
+    paintGadget  endp
+
     screenUpdate proc
         LOCAL hMemDC:HDC
         LOCAL hMemDC2:HDC
@@ -251,6 +261,7 @@ start:
         invoke paintBackground, hDC, hMemDC, hMemDC2
         invoke paintPlayer, hDC, hMemDC, hMemDC2
         invoke paintZombie, hDC, hMemDC, hMemDC2
+        invoke paintGadget, hDC, hMemDC, hMemDC2
         invoke BitBlt, hDC, 0, 0, 1792, 1024, hMemDC, 0, 0, SRCCOPY
 
         invoke DeleteDC, hMemDC     ;DeleteDC 函數刪除指定的設備內容 (DC)。
@@ -432,6 +443,7 @@ formatZombiesInfo ENDP
             mov eax, offset ThreadProc
             invoke CreateThread, NULL, NULL, eax, NULL, NORMAL_PRIORITY_CLASS, ADDR threadID 
             invoke SetTimer, hWin, 1, 3000, NULL ; 設置計時器，ID為1，時間為10000毫秒（10秒）
+            ;生成20~1500的隨機整數並賦予給gadgetX
         .elseif uMsg == WM_TIMER
             .if wParam == 1
                 ;遍歷十隻殭屍，將一隻未激活的殭屍激活，如果十隻都被激活則不做事
