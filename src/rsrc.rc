@@ -1,0 +1,37 @@
+// rsrc.rc
+
+#define ICONE 500
+#define menuBackground  101
+#define gameBackground  102
+#define endWithSurvivorBackground  103
+#define endWithoutSurvivorBackground  104
+#define player1  1001
+#define player2  1002
+#define zombie  1003
+
+// define icon resource
+ICONE ICON MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\favicon.ico"
+
+// define bitmap resource
+menuBackground BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\menuBackground.bmp"
+gameBackground BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gameBackground.bmp"
+endWithSurvivorBackground BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\endWithSurvivorBackground.bmp"
+endWithoutSurvivorBackground BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\endWithoutSurvivorBackground.bmp"
+player1 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\player1.bmp"
+player2 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\player2.bmp"
+zombie BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\zombie.bmp"
+
+// create a menu
+600 MENUEX MOVEABLE IMPURE LOADONCALL DISCARDABLE
+BEGIN
+    POPUP "&File", , , 0
+    BEGIN
+        MENUITEM "&Exit", 1000
+    END
+    POPUP "&Help", , , 0
+    BEGIN
+        MENUITEM "&About", 2000
+    END
+END
+
+
