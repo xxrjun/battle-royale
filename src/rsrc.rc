@@ -1,4 +1,5 @@
 100 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\background.bmp"
+101 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\home_page.bmp"
 1001 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\player.bmp"
 1002 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\zombie.bmp"
 1003 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gadget.bmp"
