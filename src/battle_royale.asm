@@ -111,7 +111,6 @@ include battle_royale.inc ;函式庫
     playerX          dd  250     ; 玩家位置
     playerY          dd  250 
     playerSpeed      dd  10
-    zombieSpeed      dd  5
     beenHit          dd  0
 
     gadgetX         dd  884
@@ -126,7 +125,7 @@ include battle_royale.inc ;函式庫
     keySPressed dd 0
     keyDPressed dd 0
 
-    zombies zombieObj MAX_ZOMBIES dup({0, 0, 0})
+    zombies zombieObj MAX_ZOMBIES dup({0, 0, 0, 0})
 
     score  dd  0
 
@@ -171,6 +170,20 @@ start:
     invoke WinMain, hInstance, NULL, arguments, SW_SHOWDEFAULT
     invoke ExitProcess, eax
 
+randomNumberGenerator proc lowerLimit :DWORD, upperLimit :DWORD, seed : DWORD
+    ; 計算範圍大小
+    mov ebx, upperLimit
+    sub ebx, lowerLimit
+    add ebx, 1        ; 範圍大小 = upperLimit - lowerLimit + 1
+    ; 生成隨機數
+    mov eax, seed    ; 使用種子
+    xor edx, edx
+    div ebx           ; 除以範圍大小
+    mov eax, edx
+    add eax, lowerLimit       ; 添加偏移量
+    ret
+randomNumberGenerator ENDP
+
     initGameplay proc
         ; 初始化玩家
         mov playerX, 100
@@ -184,6 +197,7 @@ start:
             mov dword ptr [ebx + zombieObj.x], 0
             mov dword ptr [ebx + zombieObj.y], 0
             mov dword ptr [ebx + zombieObj.active], 0
+            mov dword ptr [ebx + zombieObj.speed], 0
             add ebx, TYPE zombieObj
             loop InitializeZombieLoop
             
@@ -460,12 +474,12 @@ formatZombiesInfo PROC
     ret
 formatZombiesInfo ENDP
 
-activateZombie PROC;遍歷十隻殭屍，將一隻未激活的殭屍激活，如果十隻都被激活則不做事
+activateZombie PROC zombieSpeed :DWORD;遍歷十隻殭屍，將一隻未激活的殭屍激活，如果十隻都被激活則不做事
     mov ecx, 0
     lea ebx, zombies
     ActivateZombieLoop:
         cmp [ebx + zombieObj.active], 0
-        je ActivateZombie
+        je ToActivateZombie
 
         add ebx, TYPE zombieObj
         inc ecx
@@ -473,28 +487,18 @@ activateZombie PROC;遍歷十隻殭屍，將一隻未激活的殭屍激活，如
         jl ActivateZombieLoop
     jmp EndActivateZombie
 
-    ActivateZombie:
+    ToActivateZombie:
         ; 激活殭屍並設定初始值位置
         mov [ebx + zombieObj.x], 550
         mov [ebx + zombieObj.y], 550
         mov [ebx + zombieObj.active], 1
+        mov eax, zombieSpeed
+        mov [ebx + zombieObj.speed], eax
     EndActivateZombie:
     ret
 activateZombie ENDP
 
-randomNumberGenerator proc lowerLimit :DWORD, upperLimit :DWORD, seed : DWORD
-    ; 計算範圍大小
-    mov ebx, upperLimit
-    sub ebx, lowerLimit
-    add ebx, 1        ; 範圍大小 = upperLimit - lowerLimit + 1
-    ; 生成隨機數
-    mov eax, seed    ; 使用種子
-    xor edx, edx
-    div ebx           ; 除以範圍大小
-    mov eax, edx
-    add eax, lowerLimit       ; 添加偏移量
-    ret
-randomNumberGenerator ENDP
+
 
 
     ; 把 WinMain 程序放在這裡來創建窗口本身
@@ -591,10 +595,12 @@ randomNumberGenerator ENDP
             invoke SetTimer, hWin, TIMER_SEED, 1, NULL ; seed generator
         .elseif uMsg == WM_TIMER
             .if wParam == TIMER_SEED
-              add seedA, 17 
-              add seedB, 1
+              add seedA, 17
+              invoke randomNumberGenerator, 1, 7, seedB
+              add seedB, eax
             .elseif wParam == 1 
-                invoke activateZombie
+                invoke randomNumberGenerator, 3, 9, seedB
+                invoke activateZombie,eax
             .elseif wParam == 2 ;生成新道具
                 invoke randomNumberGenerator, 100, 1692, seedA
                 mov gadgetX, eax
@@ -616,19 +622,20 @@ randomNumberGenerator ENDP
                 .if (GAMESTATE == 1)
                   mov eax, offset ThreadProc
                   invoke CreateThread, NULL, NULL, eax, NULL, NORMAL_PRIORITY_CLASS, ADDR threadID 
-                  invoke SetTimer, hWin, 1, 3000, NULL ; 設置計時器，ID為1，殭屍生成觸發器
+                  invoke SetTimer, hWin, 1, 10000, NULL ; 設置計時器，ID為1，殭屍生成觸發器
                   invoke SetTimer, hWin, 2, 5000, NULL ; 設置計時器，ID為2，道具生成觸發器
                   invoke SetTimer, hWin, TIMER_SCORE, 500, NULL ; 設置計時器，分數加分觸發器
                   invoke initGameplay
                   mov GAMESTATE, 2
-                  invoke activateZombie
+                  invoke randomNumberGenerator, 3, 9, seedB
+                  invoke activateZombie,eax
                 .elseif (GAMESTATE == 3)
                     mov GAMESTATE, 1
                     invoke InvalidateRect, hWnd, NULL, TRUE
                 .endif
             .endif
               .if wParam == VK_I
-                  invoke randomNumberGenerator, 100, 1692, seedB
+                  invoke randomNumberGenerator, 5, 10, seedB
                   invoke wsprintf, ADDR infoBuffer, chr$("Random Number: %d"), eax
                   invoke MessageBox, hWin, ADDR infoBuffer, ADDR szDisplayName, MB_OK
               .elseif wParam == VK_W
@@ -673,6 +680,8 @@ randomNumberGenerator ENDP
 moveZombies PROC
     LOCAL zombieX:DWORD
     LOCAL zombieY:DWORD
+    LOCAL zombieSpeed:DWORD
+
 
     mov ecx, 0                  ; 初始化計數器
     lea ebx, zombies            ; 獲取殭屍陣列的地址
@@ -687,21 +696,22 @@ moveZombies PROC
         mov eax, [ebx + zombieObj.y] ; 將殭屍的 y 坐標移動到 eax 寄存器
         mov [zombieY], eax           ; 再將 eax 寄存器的值移動到 zombieY 變數
 
+        mov eax, [ebx + zombieObj.speed]     
 
         ; 殭屍 X 軸的移動
         mov edx, zombieX
         .if playerX > edx
-            add zombieX, 5
+            add zombieX, eax
         .elseif playerX < edx
-            sub zombieX, 5
+            sub zombieX, eax
         .endif
 
         ; 殭屍 Y 軸的移動
         mov edx, zombieY
         .if playerY > edx
-            add zombieY, 5
+            add zombieY, eax
         .elseif playerY < edx
-            sub zombieY, 5
+            sub zombieY, eax
         .endif
 
         ; 更新殭屍的位置
@@ -749,7 +759,7 @@ checkZombieCollision PROC
                 .if edx > eax;Y small boundary
                     add eax, 50
                     .if edx < eax;Y large boundary
-                        ;mov beenHit, 1; 發生碰撞
+                        mov beenHit, 1; 發生碰撞
                         ;invoke MessageBox, hWnd, ADDR infoBuffer, ADDR szDisplayName, MB_OK
                     .endif
                 .endif

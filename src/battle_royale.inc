@@ -50,4 +50,5 @@ zombieObj STRUCT
     x       DWORD ?
     y       DWORD ?
     active  DWORD ? 
+    speed   DWORD ?
 zombieObj ENDS
