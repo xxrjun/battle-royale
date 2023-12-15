@@ -104,9 +104,10 @@ include battle_royale.inc ;函式庫
     zombieSpeed      dd  5
     beenHit          dd  0
 
-    gadgetX         dd  0
-    gadgetY         dd  0
+    gadgetX         dd  884
+    gadgetY         dd  500
     gadgetType      dd  0
+    gadgetAppear    dd  0
 
     keyWPressed dd 0
     keyAPressed dd 0
@@ -236,8 +237,13 @@ start:
     paintZombie endp
 
     paintGadget proc _hdc:HDC,_hMemDC:HDC, _hMemDC2:HDC
+        cmp gadgetAppear, 1     ; 檢查 gadgetAppear 是否為true(1)
+        jne paintGadgetEnd      ; 如果不為1，跳轉到過程的末尾
+
         invoke SelectObject, _hMemDC2, gadgetBmp
-        invoke TransparentBlt, _hMemDC, gadgetX, gadgetY,25, 25, _hMemDC2,0, 0, 25 ,25, CREF_TRANSPARENT
+        invoke TransparentBlt, _hMemDC, gadgetX, gadgetY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+
+        paintGadgetEnd:
         ret
     paintGadget  endp
 
@@ -442,11 +448,11 @@ formatZombiesInfo ENDP
             mov     hEventStart, eax
             mov eax, offset ThreadProc
             invoke CreateThread, NULL, NULL, eax, NULL, NORMAL_PRIORITY_CLASS, ADDR threadID 
-            invoke SetTimer, hWin, 1, 3000, NULL ; 設置計時器，ID為1，時間為10000毫秒（10秒）
+            invoke SetTimer, hWin, 1, 3000, NULL ; 設置計時器，ID為1，殭屍生成觸發器
+            invoke SetTimer, hWin, 2, 5000, NULL ; 設置計時器，ID為2，道具生成觸發器
             ;生成20~1500的隨機整數並賦予給gadgetX
         .elseif uMsg == WM_TIMER
-            .if wParam == 1
-                ;遍歷十隻殭屍，將一隻未激活的殭屍激活，如果十隻都被激活則不做事
+            .if wParam == 1 ;遍歷十隻殭屍，將一隻未激活的殭屍激活，如果十隻都被激活則不做事
                 mov ecx, 0
                 lea ebx, zombies
                 ActivateZombieLoop:
@@ -465,6 +471,8 @@ formatZombiesInfo ENDP
                     mov [ebx + zombieObj.y], 550
                     mov [ebx + zombieObj.active], 1
                 EndActivateZombie:
+            .elseif wParam == 2 ;生成新道具
+                mov gadgetAppear, 1
             .endif 
         .elseif uMsg == WM_PAINT    ;當系統或其他應用程序請求繪製應用程序窗口的一部分時，會發送 WM_PAINT 消息
             invoke screenUpdate
@@ -600,6 +608,32 @@ checkZombieCollision PROC
     ret
 checkZombieCollision ENDP
 
+checkGadgetCollision PROC
+    ; 判斷 X 座標是否重疊
+    mov eax, playerX;eax存判斷boundary
+    mov edx, gadgetX
+    add edx, 25     ;edx存判斷子(道具座標+道具size)
+    .if edx > eax;X small boundary
+        add eax, 50
+        .if edx < eax;X large boundary
+            ; 判斷 Y 座標是否重疊
+            mov eax, playerY
+            mov edx, gadgetY
+            add edx, 25
+            .if edx > eax;Y small boundary
+                add eax, 50
+                .if edx < eax;Y large boundary
+                    mov gadgetAppear, 0; 發生碰撞
+                    ;invoke MessageBox, hWnd, ADDR zombieInfoBuffer, ADDR szDisplayName, MB_OK
+                .endif
+            .endif
+        .endif
+    .endif
+
+    ret
+checkGadgetCollision ENDP
+
+
 ThreadProc PROC USES ecx Param:DWORD
   ; 線程循環
   ThreadLoop:
@@ -607,8 +641,10 @@ ThreadProc PROC USES ecx Param:DWORD
 
     invoke moveZombies
     invoke checkZombieCollision
+    invoke checkGadgetCollision
 
     invoke SendMessage, hWnd, WM_FINISH, NULL, NULL
+
 
     ; 檢查是否需要退出線程
     ; （這需要一個額外的機制來設置某個全局變量，以指示線程何時應該結束）
