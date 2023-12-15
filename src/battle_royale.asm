@@ -83,8 +83,11 @@ include battle_royale.inc ;函式庫
     player      equ 1001
     zombie      equ 1002
     gadget      equ 1003
+    player_speedBuff  equ 1004
     MAX_ZOMBIES equ 3
     CREF_TRANSPARENT  EQU 00FFFFFFh
+
+    TIMER_BUFF equ 101
 ;帶有賦值的變數聲明
 .data
     windowClassName     db 'Window',0
@@ -96,6 +99,7 @@ include battle_royale.inc ;函式庫
     playerBmp        dd  0
     zombieBmp        dd  0
     gadgetBmp        dd  0
+    player_speedBuffBmp dd  0
     playerX          dd  250     ; 玩家位置
     playerY          dd  250 
     playerSpeed      dd  10
@@ -108,6 +112,8 @@ include battle_royale.inc ;函式庫
     gadgetY         dd  500
     gadgetType      dd  0
     gadgetAppear    dd  0
+    buffOn          dd  0
+    buffType        dd  0
 
     keyWPressed dd 0
     keyAPressed dd 0
@@ -146,6 +152,8 @@ start:
     mov    zombieBmp , eax
     invoke LoadBitmap, hInstance, gadget
     mov    gadgetBmp , eax
+    invoke LoadBitmap, hInstance, player_speedBuff
+    mov    player_speedBuffBmp , eax
 
     invoke WinMain, hInstance, NULL, arguments, SW_SHOWDEFAULT
     invoke ExitProcess, eax
@@ -158,11 +166,24 @@ start:
         ret
     paintBackground endp
 
-    paintPlayer proc _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC 
-        invoke SelectObject, _hMemDC2, playerBmp
-        invoke TransparentBlt, _hMemDC, playerX, playerY,25, 25, _hMemDC2,0, 0, 25 ,25, CREF_TRANSPARENT
-        ret
+    paintPlayer proc _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
+          cmp buffOn, 1                ; 檢查 buffOn 是否為 1
+          jne UseOriginalBmp           ; 如果不為 1，使用原來的位圖
+
+          ; 如果 buffOn 為 1，使用加速狀態的位圖
+          invoke SelectObject, _hMemDC2, player_speedBuffBmp
+          jmp PaintBmp
+
+      UseOriginalBmp:
+          ; 使用原來的位圖
+          invoke SelectObject, _hMemDC2, playerBmp
+
+      PaintBmp:
+          ; 繪製玩家
+          invoke TransparentBlt, _hMemDC, playerX, playerY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+          ret
     paintPlayer endp
+
 
     paintZombie proc _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
         LOCAL zombieX :DWORD
@@ -279,27 +300,28 @@ start:
 
     updatePlayerPosition PROC
         mov eax, keyWPressed
+        mov edx, playerSpeed
         .if eax != 0
             .if playerY > 20
-                sub playerY, 10
+                sub playerY, edx
             .endif
         .endif
         mov eax, keySPressed
         .if eax != 0
             .if playerY < 934
-                add playerY, 10
+                add playerY, edx
             .endif
         .endif
         mov eax, keyAPressed
         .if eax != 0
             .if playerX > 20
-                sub playerX, 10
+                sub playerX, edx
             .endif
         .endif
         mov eax, keyDPressed
         .if eax != 0
             .if playerX < 1712
-                add playerX, 10
+                add playerX, edx
             .endif
         .endif
         invoke InvalidateRect, hWnd, NULL, TRUE
@@ -473,6 +495,9 @@ formatZombiesInfo ENDP
                 EndActivateZombie:
             .elseif wParam == 2 ;生成新道具
                 mov gadgetAppear, 1
+            .elseif wParam == TIMER_BUFF ; 檢查是否是道具效果計時器
+                mov buffOn, 0        ; 關閉道具效果
+                invoke KillTimer, hWnd, TIMER_BUFF ; 銷毀計時器
             .endif 
         .elseif uMsg == WM_PAINT    ;當系統或其他應用程序請求繪製應用程序窗口的一部分時，會發送 WM_PAINT 消息
             invoke screenUpdate
@@ -624,7 +649,8 @@ checkGadgetCollision PROC
                 add eax, 50
                 .if edx < eax;Y large boundary
                     mov gadgetAppear, 0; 發生碰撞
-                    ;invoke MessageBox, hWnd, ADDR zombieInfoBuffer, ADDR szDisplayName, MB_OK
+                    mov buffOn, 1          ; 啟用道具效果
+                    invoke SetTimer, hWnd, TIMER_BUFF, 3000, NULL ; 設置一次性計時器，ID 為 TIMER_BUFF，3秒後觸發
                 .endif
             .endif
         .endif
@@ -633,6 +659,19 @@ checkGadgetCollision PROC
     ret
 checkGadgetCollision ENDP
 
+checkBuffEffect PROC
+      cmp buffOn, 1        ; 檢查 buffOn 是否為 1
+      jne BuffNotOn        ; 如果不為 1，跳到 BuffNotOn 標籤
+
+      mov playerSpeed, 20  ; 如果 buffOn 為 1，設置 playerSpeed 為 20
+      jmp BuffEnd
+
+    BuffNotOn:
+      mov playerSpeed, 10
+    
+    BuffEnd:
+      ret
+checkBuffEffect ENDP
 
 ThreadProc PROC USES ecx Param:DWORD
   ; 線程循環
@@ -642,6 +681,7 @@ ThreadProc PROC USES ecx Param:DWORD
     invoke moveZombies
     invoke checkZombieCollision
     invoke checkGadgetCollision
+    invoke checkBuffEffect
 
     invoke SendMessage, hWnd, WM_FINISH, NULL, NULL
 
