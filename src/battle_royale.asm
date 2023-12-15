@@ -110,8 +110,6 @@ include battle_royale.inc ;函式庫
     playerX          dd  250     ; 玩家位置
     playerY          dd  250 
     playerSpeed      dd  10
-    activeZombieInitX          dd  550     ; 殭屍位置
-    activeZombieInitY          dd  550 
     zombieSpeed      dd  5
     beenHit          dd  0
 
@@ -169,12 +167,52 @@ start:
     invoke WinMain, hInstance, NULL, arguments, SW_SHOWDEFAULT
     invoke ExitProcess, eax
 
+    initGameplay proc
+        ; 初始化玩家
+        mov playerX, 250
+        mov playerY, 250
+        mov playerSpeed, 10
+
+        ; 初始化殭屍
+        lea ebx, zombies
+        mov ecx, MAX_ZOMBIES
+        InitializeZombieLoop:
+            mov dword ptr [ebx + zombieObj.x], 0
+            mov dword ptr [ebx + zombieObj.y], 0
+            mov dword ptr [ebx + zombieObj.active], 0
+            add ebx, TYPE zombieObj
+            loop InitializeZombieLoop
+            
+        ; 初始化道具
+        mov gadgetX, 884
+        mov gadgetY, 500
+        mov gadgetType, 0
+        mov gadgetAppear, 0
+        mov buffOn, 0
+        mov buffType, 0
+
+        ;其他初始化
+        mov beenHit, 0
+        mov score, 0
+        ;初始化buffer
+        lea edi, scoreBuffer ; 將 scoreBuffer 的地址加載到 edi 寄存器
+        mov ecx, 256        ; 設置循環計數為 256（scoreBuffer 的大小）
+        InitializeLoop:
+            mov byte ptr [edi], 0 ; 將當前指向的字節設置為 0
+            inc edi               ; 移動到下一個字節
+            loop InitializeLoop   ; 循環直到 ecx 為 0
+      
+        ret
+    initGameplay endp
+
     ;繪製圖片的函數
     paintBackground proc _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
         ; 繪製背景
         .if(GAMESTATE == 1)
             invoke SelectObject, _hMemDC2, home_pageBmp
         .elseif(GAMESTATE == 2)
+            invoke SelectObject, _hMemDC2, backgroundBmp
+        .elseif(GAMESTATE == 3)
             invoke SelectObject, _hMemDC2, backgroundBmp
         .endif
         
@@ -190,10 +228,18 @@ start:
             ; 設置文本顏色
             invoke SetTextColor, _hMemDC, 00FF8800h
             ; 設置繪製文本的矩形區域
-            mov   rect.left, 846
-            mov   rect.top, 10
-            mov   rect.right, 946
-            mov   rect.bottom, 50  
+            .if(GAMESTATE == 2)
+                mov   rect.left, 846
+                mov   rect.top, 10
+                mov   rect.right, 946
+                mov   rect.bottom, 50  
+            .elseif(GAMESTATE == 3)
+                mov   rect.left, 846
+                mov   rect.top, 492
+                mov   rect.right, 946
+                mov   rect.bottom, 532  
+            .endif
+
             ; 繪製文本
             invoke DrawText, _hMemDC, addr scoreBuffer, -1, addr rect, DT_CENTER or DT_VCENTER or DT_SINGLELINE
 
@@ -325,6 +371,8 @@ start:
             invoke paintZombie, hDC, hMemDC, hMemDC2
             invoke paintGadget, hDC, hMemDC, hMemDC2
             invoke paintScoreBar, hDC, hMemDC, hMemDC2
+        .elseif(GAMESTATE == 3)
+            invoke paintScoreBar, hDC, hMemDC, hMemDC2
         .endif
         invoke BitBlt, hDC, 0, 0, 1792, 1024, hMemDC, 0, 0, SRCCOPY
 
@@ -336,27 +384,23 @@ start:
     screenUpdate endp   
 
     updatePlayerPosition PROC
-        mov eax, keyWPressed
         mov edx, playerSpeed
-        .if eax != 0
+        .if keyWPressed == 1
             .if playerY > 20
                 sub playerY, edx
             .endif
-        .endif
-        mov eax, keySPressed
-        .if eax != 0
+        .endif 
+        .if keySPressed == 1
             .if playerY < 934
                 add playerY, edx
             .endif
         .endif
-        mov eax, keyAPressed
-        .if eax != 0
+        .if keyAPressed == 1
             .if playerX > 20
                 sub playerX, edx
             .endif
         .endif
-        mov eax, keyDPressed
-        .if eax != 0
+        .if keyDPressed == 1
             .if playerX < 1712
                 add playerX, edx
             .endif
@@ -544,17 +588,20 @@ activateZombie ENDP
             mov eax, 1
         .elseif uMsg == WM_KEYDOWN
             .if wParam == VK_RETURN ; Enter 鍵
-                .if GAMESTATE == 1
+                .if (GAMESTATE == 1)
                   mov eax, offset ThreadProc
                   invoke CreateThread, NULL, NULL, eax, NULL, NORMAL_PRIORITY_CLASS, ADDR threadID 
                   invoke SetTimer, hWin, 1, 3000, NULL ; 設置計時器，ID為1，殭屍生成觸發器
                   invoke SetTimer, hWin, 2, 5000, NULL ; 設置計時器，ID為2，道具生成觸發器
                   invoke SetTimer, hWin, TIMER_SCORE, 500, NULL ; 設置計時器，分數加分觸發器
+                  invoke initGameplay
                   mov GAMESTATE, 2
                   invoke activateZombie
+                .elseif (GAMESTATE == 3)
+                    mov GAMESTATE, 1
+                    invoke InvalidateRect, hWnd, NULL, TRUE
                 .endif
             .endif
-            .if(GAMESTATE == 2)
               .if wParam == VK_I
                   invoke formatZombiesInfo
                   invoke MessageBox, hWin, ADDR zombieInfoBuffer, ADDR szDisplayName, MB_OK
@@ -567,10 +614,7 @@ activateZombie ENDP
               .elseif wParam == VK_D
                   mov keyDPressed, 1
               .endif
-              invoke updatePlayerPosition
-            .endif
         .elseif uMsg == WM_KEYUP
-            .if(GAMESTATE == 2)
               .if wParam == VK_W
                   mov keyWPressed, 0
               .elseif wParam == VK_S
@@ -580,10 +624,18 @@ activateZombie ENDP
               .elseif wParam == VK_D
                   mov keyDPressed, 0
               .endif        
-              invoke updatePlayerPosition
-            .endif
         .elseif uMsg == WM_FINISH
             invoke InvalidateRect, hWnd, NULL, TRUE ;;addr rect, TRUE
+            .if(GAMESTATE == 2)
+                .if beenHit == 1
+                    mov GAMESTATE, 3
+                    
+                    invoke KillTimer, hWin, 1
+                    invoke KillTimer, hWin, 2
+                    invoke KillTimer, hWin, TIMER_SCORE
+                    invoke KillTimer, hWin, TIMER_BUFF
+                .endif
+            .endif
         .elseif uMsg == WM_DESTROY                                        ; if the user closes our window 
             invoke PostQuitMessage,NULL          
         .else
@@ -728,22 +780,29 @@ checkBuffEffect PROC
 checkBuffEffect ENDP
 
 ThreadProc PROC USES ecx Param:DWORD
-  ; 線程循環
-  ThreadLoop:
-    invoke Sleep, 100  ; 等待 100 毫秒
+    ; 線程循環
+    ThreadLoop:
+        invoke Sleep, 100  ; 等待 100 毫秒
 
-    invoke moveZombies
-    invoke checkZombieCollision
-    invoke checkGadgetCollision
-    invoke checkBuffEffect
+        invoke updatePlayerPosition
+        invoke moveZombies
+        invoke checkZombieCollision
+        invoke checkGadgetCollision
+        invoke checkBuffEffect
 
-    invoke SendMessage, hWnd, WM_FINISH, NULL, NULL
+        invoke SendMessage, hWnd, WM_FINISH, NULL, NULL
 
-    jmp ThreadLoop
+        .if beenHit == 1
+            jmp ExitThreadLoop
+        .endif
 
-  ExitThreadLoop:
-  ret
+        jmp ThreadLoop
+
+    ExitThreadLoop:
+        ; 清理和終止線程前的代碼
+        ret
 ThreadProc ENDP
+
 
     ;=====================================================
 ;原始碼結束
