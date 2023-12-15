@@ -23,8 +23,16 @@ ____
 
 == 開發工具
 
-* link:https://www.masm32.com/index.htm[MASM32] - 編譯器
+=== 程式開發
+
+* link:https://www.masm32.com/index.htm[MASM32 SDK] - 工具集，包含 assembler、editor、linker 等工具
+** Assembler: `ml.exe` 或 `ml64.exe` 用於將組合語言源代碼轉換成機器代碼。
+** Linker: `link.exe` 用於將組譯器產生的對象檔案連結成可執行檔案。
+* link:https://code.visualstudio.com/[Visual Studio Code] 或 MASM32 SDK 中附帶的 link:https://www.masm32.com/[MASM Editor] - 編輯器，用於編寫組合語言程式碼
 * link:https://chat.openai.com/[ChatGPT] with GPT4.0 - 協作工具，詢問程式碼、開發問題等
+
+=== 影音素材
+
 * link:https://openai.com/dall-e-3[DALL·E] - 圖片生成工具，用於製作遊戲素材
 * link:https://huggingface.co/spaces/facebook/MusicGen[MusicGen] - 音樂生成工具，用於製作遊戲音效
 * link:https://mixkit.co/free-sound-effects/game/[Mixkit] - 遊戲音效素材
@@ -33,12 +41,12 @@ ____
 
 [quote]
 ____
-使用 Makefile 編譯，請先安裝 MASM32
+使用 Makefile 編譯，需要安裝 link:https://www.masm32.com/index.htm[MASM32 SDK]，並將其安裝路徑加入環境變量。
 ____
 
 [source,shell]
 ----
-make # 編譯
+make # 編譯並生成可執行文件
 make clean # 清理
 ----
 
@@ -120,3 +128,4 @@ battle-royale/
 * link:https://learn.microsoft.com/en-us/cpp/assembler/masm/directives-reference?view=msvc-170[MASM Directives Reference]
 
 == 開發進度
+

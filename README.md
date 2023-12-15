@@ -15,23 +15,22 @@
 
 # Battle Royale
 
->  MIS 109403019 鄒翔宇, MIS 109403021 傅珩洵
+> MIS 109403019 鄒翔宇, MIS 109403021 傅珩洵
 
 <!-- 中英版文件 -->
 <!-- @TODO -->
 <!-- [English](./README.md) | [中文](./README_zh.md) -->
 
-
 <br />
 <div align="center">
   <a href="https://github.com/xxrjun/battle-royale">
-    <img src="./assets/docs/banner_dalle.png" alt="Logo" width="800" height="400">
+    <img src="./assets/docs/banner.png" alt="Logo" width="800" height="450">
   </a>
 
   <h3 align="center">Battle Royale Game</h3>
 
   <p align="center">
-     NCU Assembly | Fall 2023 | Final Project 
+     NCU Assembly | Fall 2023 | Final Project
     <br />
     <a href="./docs/development.md"><strong>Explore the devlopement docs »</strong></a>
     <br />
@@ -39,7 +38,6 @@
     <!-- <a href="">View Demo</a> -->
   </p>
 </div>
-
 
 ## 繳交
 
@@ -49,11 +47,11 @@
 
 ## 開發工具
 
-- **編譯器：** [MASM32](https://www.masm32.com/index.htm)
+- **組譯器（Assembler）：** [MASM32](https://www.masm32.com/index.htm) 提供的 `ml.exe` 或 `ml64.exe` 用於將組合語言源代碼轉換成機器代碼。
 
-- **鏈接器：**　 
+- **鏈接器（Linker）：** `link.exe`，通常作為 Microsoft Visual Studio 工具集的一部分，用於將組譯器產生的對象檔案連結成可執行檔案。
 
-- **編輯器：**[Visual Studio Code](https://code.visualstudio.com/), [MASM Editor](https://www.masm32.com/)
+- **編輯器 (Text Editor)：** [Visual Studio Code](https://code.visualstudio.com/), [MASM Editor](https://www.masm32.com/)
 
 ## 遊戲規則
 
@@ -67,8 +65,6 @@
 
 <!-- @TODO: Add flowchart -->
 
-
-
 ## 貢獻者
 
 <table>
@@ -78,12 +74,11 @@
  <td align="center"><a href="https://github.com/FuHarrison"><img src="https://avatars.githubusercontent.com/u/92322412?v=4" width="100px;" alt=""/><br /><sub><b>FuHarrison</b></sub></a><br/></td>
 </table>
 
-
 [contributors-shield]: https://img.shields.io/github/contributors/xxrjun/battle-royale.svg?style=for-the-badge
 [contributors-url]: https://github.com/xxrjun/battle-royale/graphs/contributors
 [forks-shield]: https://img.shields.io/github/forks/xxrjun/battle-royale.svg?style=for-the-badge
 [forks-url]: https://github.com/xxrjun/battle-royale/network/members
 [stars-shield]: https://img.shields.io/github/stars/xxrjun/battle-royale.svg?style=for-the-badge
 [stars-url]: https://github.com/xxrjun/battle-royale/stargazers
-[license-shield]: https://img.shields.io/github/license/xxrjun/battle-royale.svg?style=for-the-badge
-[license-url]: https://github.com/xxrjun/battle-royale/blob/master/LICENSE.txt
+<!-- [license-shield]: https://img.shields.io/github/license/xxrjun/battle-royale.svg?style=for-the-badge
+[license-url]: https://github.com/xxrjun/battle-royale/blob/master/LICENSE.txt -->
