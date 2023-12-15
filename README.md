@@ -32,26 +32,45 @@
   <p align="center">
      NCU Assembly | Fall 2023 | Final Project
     <br />
-    <a href="./docs/development.md"><strong>Explore the devlopement docs »</strong></a>
+    <a href="./docs/development.adoc"><strong>Explore the devlopement docs »</strong></a>
     <br />
     <br />
     <!-- <a href="">View Demo</a> -->
   </p>
 </div>
 
-## 繳交
 
-- [ ] Project Code
-- [ ] PPT
-- [ ] Report: README and PDF
+
+<!-- TABLE OF CONTENTS -->
+- [Battle Royale](#battle-royale)
+  - [開發工具](#開發工具)
+    - [程式開發](#程式開發)
+    - [影音素材](#影音素材)
+  - [遊戲規則](#遊戲規則)
+  - [開始遊戲](#開始遊戲)
+    - [下載專案](#下載專案)
+    - [直接執行](#直接執行)
+    - [使用 Makefile 進行編譯](#使用-makefile-進行編譯)
+  - [遊戲流程](#遊戲流程)
+  - [貢獻者](#貢獻者)
+
 
 ## 開發工具
 
-- **組譯器（Assembler）：** [MASM32](https://www.masm32.com/index.htm) 提供的 `ml.exe` 或 `ml64.exe` 用於將組合語言源代碼轉換成機器代碼。
+### 程式開發
 
-- **鏈接器（Linker）：** `link.exe`，通常作為 Microsoft Visual Studio 工具集的一部分，用於將組譯器產生的對象檔案連結成可執行檔案。
+- [MASM32 SDK](https://www.masm32.com/index.htm) - 工具集，包含 assembler、editor、linker 等工具
+  - Assembler: `ml.exe` 用於將組合語言源代碼轉換成機器代碼。
+  - Linker: `link.exe` 用於將組譯器產生的對象檔案連結成可執行檔案。
+- [Visual Studio Code](https://code.visualstudio.com/) 或 MASM32 SDK 中附帶的 [MASM Editor](https://www.masm32.com/) - 編輯器，用於編寫組合語言程式碼
+- [ChatGPT](https://chat.openai.com/) with GPT4.0 - 協作工具，詢問程式碼、開發問題等
 
-- **編輯器 (Text Editor)：** [Visual Studio Code](https://code.visualstudio.com/), [MASM Editor](https://www.masm32.com/)
+### 影音素材
+
+- [DALL·E](https://openai.com/dall-e-3) - 圖片生成工具，用於製作遊戲素材
+- [MusicGen](https://huggingface.co/spaces/facebook/MusicGen) - 音樂生成工具，用於製作遊戲音效
+- [Mixkit](https://mixkit.co/free-sound-effects/game/) - 遊戲音效素材
+ Editor)：** [Visual Studio Code](https://code.visualstudio.com/), [MASM Editor](https://www.masm32.com/)
 
 ## 遊戲規則
 
@@ -59,7 +78,30 @@
 
 ## 開始遊戲
 
-<!-- @TODO: -->
+### 下載專案
+
+```bash
+git clone git@github.com:xxrjun/battle-royale.git
+# or
+git clone https://github.com/xxrjun/battle-royale.git
+```
+
+### 直接執行
+
+```bash
+cd battle-royale/bin
+battle_royale.exe 
+# or
+./battle_royale.exe
+```
+
+### 使用 Makefile 進行編譯
+
+> 需要安裝 [MASM32](https://www.masm32.com/index.htm)
+
+```bash
+make # or make all
+```
 
 ## 遊戲流程
 
