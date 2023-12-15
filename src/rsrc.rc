@@ -1,0 +1,52 @@
+// rsrc.rc
+
+#define ICONE 500
+#define menuBackground  101
+#define gameBackground  102
+#define endWithSurvivorBackground  103
+#define endWithoutSurvivorBackground  104
+#define player1  1001
+// #define player2  1002
+#define zombie  1002
+#define gadgetLighting  1003
+#define gadgetIce  1004
+#define gadgetStar  1005
+#define gadgetMoney  1006
+#define playerSpeedBuff  1010
+#define zombieIceDebuff  1011
+#define playerStarBuff  1012
+#define playerScoreBuff  1013
+
+
+// define icon resource
+ICONE ICON MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\favicon.ico"
+
+// define bitmap resource
+menuBackground BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\menuBackground.bmp"
+gameBackground BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gameBackground.bmp"
+endWithSurvivorBackground BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\endWithSurvivorBackground.bmp"
+endWithoutSurvivorBackground BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\endWithoutSurvivorBackground.bmp"
+player1 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\player1.bmp"
+// player2 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\player2.bmp"
+zombie BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\zombie.bmp"
+gadgetLighting BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gadgetLighting.bmp"
+gadgetIce BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gadgetIce.bmp"
+gadgetStar BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gadgetStar.bmp"
+gadgetMoney BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gadgetMoney.bmp"
+playerSpeedBuff BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\playerSpeedBuff.bmp"
+zombieIceDebuff BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\zombieIceDebuff.bmp"
+playerStarBuff BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\playerStarBuff.bmp"
+playerScoreBuff BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\playerScoreBuff.bmp"
+
+// create a menu
+600 MENUEX MOVEABLE IMPURE LOADONCALL DISCARDABLE
+BEGIN
+    POPUP "&File", , , 0
+    BEGIN
+        MENUITEM "&Exit", 1000
+    END
+    POPUP "&Help", , , 0
+    BEGIN
+        MENUITEM "&About", 2000
+    END
+END

@@ -1,145 +1,1115 @@
-;=====================================================================
-;用組合語言開發九子棋 | 08/12/2023
-;=====================================================================
+; ======================================================================
+;
+; NCU CSIE Assembly Language and System Programming Fall 2023, Final Project
+;
+; Project Name: Battle Royale
+; Student Info: 
+;   - MIS 109403019 xxrjun (https://github.com/xxrjun)
+;   - MIS 109403021 FuHarrison (https://github.com/FuHarrison)
+;
+;  _______               __        __      __                  _______                                 __                   ______    ______   __       __  ________ 
+; /       \             /  |      /  |    /  |                /       \                               /  |                 /      \  /      \ /  \     /  |/        |
+; $$$$$$$  |  ______   _$$ |_    _$$ |_   $$ |  ______        $$$$$$$  |  ______   __    __   ______  $$ |  ______        /$$$$$$  |/$$$$$$  |$$  \   /$$ |$$$$$$$$/ 
+; $$ |__$$ | /      \ / $$   |  / $$   |  $$ | /      \       $$ |__$$ | /      \ /  |  /  | /      \ $$ | /      \       $$ | _$$/ $$ |__$$ |$$$  \ /$$$ |$$ |__    
+; $$    $$<  $$$$$$  |$$$$$$/   $$$$$$/   $$ |/$$$$$$  |      $$    $$< /$$$$$$  |$$ |  $$ | $$$$$$  |$$ |/$$$$$$  |      $$ |/    |$$    $$ |$$$$  /$$$$ |$$    |   
+; $$$$$$$  | /    $$ |  $$ | __   $$ | __ $$ |$$    $$ |      $$$$$$$  |$$ |  $$ |$$ |  $$ | /    $$ |$$ |$$    $$ |      $$ |$$$$ |$$$$$$$$ |$$ $$ $$/$$ |$$$$$/    
+; $$ |__$$ |/$$$$$$$ |  $$ |/  |  $$ |/  |$$ |$$$$$$$$/       $$ |  $$ |$$ \__$$ |$$ \__$$ |/$$$$$$$ |$$ |$$$$$$$$/       $$ \__$$ |$$ |  $$ |$$ |$$$/ $$ |$$ |_____ 
+; $$    $$/ $$    $$ |  $$  $$/   $$  $$/ $$ |$$       |      $$ |  $$ |$$    $$/ $$    $$ |$$    $$ |$$ |$$       |      $$    $$/ $$ |  $$ |$$ | $/  $$ |$$       |
+; $$$$$$$/   $$$$$$$/    $$$$/     $$$$/  $$/  $$$$$$$/       $$/   $$/  $$$$$$/   $$$$$$$ | $$$$$$$/ $$/  $$$$$$$/        $$$$$$/  $$/   $$/ $$/      $$/ $$$$$$$$/ 
+;                                                                                 /  \__$$ |                                                                         
+;                                                                                 $$    $$/                                                                          
+;                                                                                  $$$$$$/                                                                                                                                      
+; 
+; ======================================================================
 
-;=====================================================================
-;手動編譯流程
-;1)	\masm32\bin\ml /c /coff "main.asm"
-;2)	\masm32\bin\PoLink /SUBSYSTEM:WINDOWS "main.obj"
+; Assembler directives for 32-bit Assembly code
 
-;====================================================================
+.686                   ; minimum processor needed for 32 bit
+.model flat, stdcall 
+option casemap :none   ; set code to case sensitive
 
+; ======================================================================
 
-.386
-option casemap	:none	;大小寫區分
+INCLUDE battle_royale.inc
 
-;函式庫
-include \masm32\include\masm32rt.inc
-includelib \masm32\lib\kernel32.lib
-includelib \masm32\lib\masm32.lib
+; ======================================================================
 
-;預先聲明一個函數
-;函數原型名為WinMain，具有4個參數
-WinMain proto :DWORD,:DWORD,:DWORD,:DWORD
+; ----------------------------------------------------------------------
+; Macros Definitions
+; ----------------------------------------------------------------------
 
+; ----------------------------------------------------------------------
+; szText MACRO
+; Description: Insert TEXT into the code segment
+; Parameters:
+;   Name - Name of the string
+;   Text - Text to be stored in the string
+; ----------------------------------------------------------------------
+szText MACRO Name, Text:VARARG
+  LOCAL lbl       
+    jmp lbl        
+      Name DB Text,0  
+    lbl:           
+ENDM
 
-;帶有賦值的變數聲明
-.DATA
-windowClassName     db 'Window',0
-windowTitle         db 'Nine Mens Morris',0
+; ----------------------------------------------------------------------
+; m2m MACRO
+; Description: Copy a value from one memory location to another
+; Parameters:
+;   M1 - Destination memory location
+;   M2 - Source memory location
+; ----------------------------------------------------------------------
+m2m MACRO M1, M2
+  push M2   
+  pop  M1  
+ENDM
 
-;尚未賦值的變數聲明
-.DATA?
-instancia   HINSTANCE ? ; 窗口實例
-argumentos  LPSTR ?     ; 應用程式參數
+; ----------------------------------------------------------------------
+; return MACRO
+; Description: Returns a value from a procedure
+; Parameters:
+;   arg - Value to be returned
+; ----------------------------------------------------------------------
+return MACRO arg
+  mov eax, arg  
+  ret           
+ENDM
 
-    ;啟動原始碼
-    .CODE
+; ======================================================================
+
+; ----------------------------------------------------------------------
+; Prototypes for procedures
+; Usage: Invoke procedureName, arg1, arg2, ...
+; ----------------------------------------------------------------------
+
+; ----------------------------------------------------------------------
+; WinMain Procedure Prototype 
+; Description: The main entry point for a Windows application
+; Parameters:
+;   hInst - Handle to the current instance of the application
+;   hPrevInst - Handle to the previous instance of the application
+;   CmdLine - Command line for the application
+;   CmdShow - How the window is to be shown
+; Reference: : https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-winmain
+; ----------------------------------------------------------------------
+WinMain PROTO :DWORD, :DWORD, :DWORD, :DWORD
+
+; ----------------------------------------------------------------------
+; WndProc 
+; Description: A callback function, which you define in your application, that processes messages sent to a window.
+; Parameters:
+;   hWin - Handle to the window
+;   uMsg - Message identifier
+;   wParam - Additional message information
+;   lParam - Additional message information
+; Reference: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nc-winuser-wndproc
+; ----------------------------------------------------------------------
+WndProc PROTO :DWORD,:DWORD,:DWORD,:DWORD 
+
+TopXY PROTO :DWORD,:DWORD 
+PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD  
+ExitProcess PROTO, dwExitCode:DWORD
+PaintBackground PROTO _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
+PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD  
+
+; ======================================================================
+
+.const
+    menuBackground EQU 101
+    gameBackground EQU 102
+    endWithSurvivorBackground EQU 103
+    endWithoutSurvivorBackground EQU 104
+    player EQU  1001
+    zombie  EQU 1002
+    gadgetLighting EQU 1003
+    gadgetIce EQU 1004
+    gadgetStar EQU 1005
+    gadgetMoney EQU 1006
+    playerSpeedBuff EQU 1010
+    zombieIceDebuff EQU 1011
+    playerStarBuff EQU 1012
+    playerScoreBuff EQU 1013
+
+    MAX_ZOMBIES EQU 3
+    CREF_TRANSPARENT  EQU 00FFFFFFh
+    WM_FINISH EQU WM_USER + 100h
+
+    TIMER_BUFF equ 105
+    TIMER_SCORE equ 106
+    TIMER_SEED  equ 107
+    TIMER_SEED2  equ 108
+
+; ======================================================================
+
+.data
+    ; Window Viewport (FHD)
+    windowWidth  DWORD 1280    
+    windowHeight DWORD 786 ; 720 + 64   
+    
+    menuChoice DWORD ?
+    inputKey BYTE ?     ; stores the user's input key
+    CommandLine   DD 0
+
+    startingGameMsg BYTE "Starting Battle Royale Game", 0
+    szDisplayGameName BYTE "Battle Royale", 0
+    singlePlayerGameMsg BYTE "Single-player Game", 0
+    szUpdateScreenMsg BYTE "Updating the screen...", 0
+    gameMode DD 1       ; 1 = single player, 2 = multiplayer
+    gameState BYTE 1    ; 1 = menu, 2 = game, 3 = game over
+
+    szLoadBitmapFailedMsg BYTE "Failed to load bitmap", 0
+
+    windowClassName     DB 'Window',0
+    szDisplayName         DB 'Battle Royale',0
+    paintstruct   PAINTSTRUCT <>
+    infoBuffer        DB 256 dup(0)
+    scoreBuffer             DB 256 dup(0)
+
+    ; game state: 1 = menu, 2 = game, 3 = game over
+    GAMESTATE        DD  1
+
+    ; bitmaps
+    menuPageBmp     DD  0
+    gameBackgroundBmp    DD  0
+    playerBmp        DD  0
+    zombieBmp        DD  0
+    gadgetLightingBmp      DD 0
+    gadgetIceBmp      DD 0
+    gadgetStarBmp       DD 0
+    gadgetMoneyBmp       DD 0
+    playerSpeedBuffBmp  DD 0
+    zombieIceDebuffBmp  DD 0
+    playerStarBuffBmp  DD 0
+    playerScoreBuffBmp  DD 0
+
+    ; in game variables
+    playerX          DD  250     ; 玩家位置
+    playerY          DD  250 
+    playerSpeed      DD  10
+    beenHit          DD  0
+    gadgetX         DD  884
+    gadgetY         DD  500
+    gadgetType      DD  0 ;   1-閃電,2-冰凍,3-無敵,4-分數加速累積
+    gadgetAppear    DD  0
+    buffOn          DD  0
+    buffType        DD  0
+
+    ; user input
+    keyWPressed DD 0
+    keyAPressed DD 0
+    keySPressed DD 0
+    keyDPressed DD 0
+
+    zombies zombieObj MAX_ZOMBIES dup({0, 0, 0, 0})
+
+    score  DD  0
+    scoreIncrease DD  0
+
+    seedA  DD  109403021
+    seedB  DD  109403019
+
+     ; music and sound effects
+    backgroundMusic DB "../assets/sounds/backgroundmusic.mp3", 0
+    buttonInputSound DB "../assets/sounds/button-input-sound-effects.mp3", 0
+    startGameSound DB "../assets/sounds/background-music.mp3", 0
+
+    ; - MCI_OPEN_PARMS Structure ( API=mciSendCommand ) -
+    open_dwCallback     DD ?
+    open_wDeviceID     DD ?
+    open_lpstrDeviceType  DD ?
+    open_lpstrElementName  DD ?
+    open_lpstrAlias     DD ?
+
+    ; - MCI_GENERIC_PARMS Structure ( API=mciSendCommand ) -
+    generic_dwCallback   DD ?
+
+    ; - MCI_PLAY_PARMS Structure ( API=mciSendCommand ) -
+    play_dwCallback     DD ?
+    play_dwFrom       DD ?
+    play_dwTo        DD ?   
+
+; ======================================================================
+
+.data?
+    hInstance   HINSTANCE ? ; handle to the current instance
+    arguments  LPSTR ?     ; 應用程式參數
+    threadID    DWORD ? 
+    hEventStart HANDLE ?
+    hWnd HWND ? ; handle to the main window
+
+; ======================================================================
+
+.code
 start:
-    ;=====================================================
+    invoke GetModuleHandle, NULL 
+    mov hInstance, eax  ; provides the instance handle
 
-    ;取得當前執行的實例的函數
-    ;使用NULL讓它返回當前執行的實例
-    ;同時將實例存入eax寄存器
-    invoke GetModuleHandle, NULL ;將實例存入eax寄存器
-    mov instancia, eax  ;將eax中的實例值移動到變數 'instancia' 中；mov 目標, 來源
-    invoke GetCommandLine ;類似於GetModuleHandle，此函數獲取應用程式的參數；將參數存入eax寄存器
-    mov argumentos, eax ;將eax中的參數值移動到變數 'argumentos' 中
+    ; load bitmaps images into memory
+    invoke LoadBitmap, hInstance, gameBackground
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    gameBackgroundBmp, eax
 
-    ;執行WinMain函數，並將變數 'instancia' 和 'argumentos' 傳遞為參數
-    ;NULL表示沒有父或先前的實例，在這種情況下為空
-    ;SW_SHOWDEFAULT表示顯示窗口的模式/方式
-    invoke WinMain, instancia, NULL, argumentos, SW_SHOWDEFAULT
+    invoke LoadBitmap, hInstance, menuBackground
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    menuPageBmp, eax
 
-    ;以eax中的返回值退出進程
-    invoke ExitProcess, eax
+    invoke LoadBitmap, hInstance, player
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    playerBmp , eax
 
-    ;具有4個參數的WinMain函數，已在第25行聲明過prototype
-    WinMain proc hInst:HINSTANCE, hPrevInst:HINSTANCE, CmdLine:LPSTR, CmdShow:DWORD
-        ;本地變數
-        LOCAL estVentana:WNDCLASSEX  ;窗口結構，包含窗口的特性
-        LOCAL mensaje:MSG             ;處理發送到窗口的消息的變數，例如按鈕的動作
-        LOCAL manejador:HWND          ;窗口的處理程序，用於識別窗口
+    invoke LoadBitmap, hInstance, zombie
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    zombieBmp , eax
 
-        ;設置窗口結構
-        mov estVentana.cbSize, SIZEOF WNDCLASSEX
-        mov estVentana.style, CS_HREDRAW or CS_VREDRAW
-        mov estVentana.lpfnWndProc, OFFSET WndProc
-        mov estVentana.cbClsExtra, NULL
-        mov estVentana.cbWndExtra, NULL
-        push instancia      ;指定窗口屬於哪個實例
-        pop estVentana.hInstance
-        mov estVentana.hbrBackground, COLOR_WINDOW + 1
-        mov estVentana.lpszMenuName, NULL
-        mov estVentana.lpszClassName, OFFSET windowClassName
-        invoke LoadIcon, NULL, IDI_APPLICATION
-        mov estVentana.hIcon, eax
-        mov estVentana.hIconSm, eax
-        invoke LoadCursor, NULL, IDC_ARROW
-        mov estVentana.hCursor, eax
+    invoke LoadBitmap, hInstance, gadgetLighting
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    gadgetLightingBmp , eax
 
-        ;註冊窗口類別
-        invoke RegisterClassEx, addr estVentana
+    invoke LoadBitmap, hInstance, gadgetIce
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    gadgetIceBmp , eax
+    
+    invoke LoadBitmap, hInstance, gadgetStar
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    gadgetStarBmp , eax
+    
+    invoke LoadBitmap, hInstance, gadgetMoney
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    gadgetMoneyBmp , eax
+
+    invoke LoadBitmap, hInstance, playerSpeedBuff 
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    playerSpeedBuffBmp , eax
+
+    invoke LoadBitmap, hInstance, zombieIceDebuff
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    zombieIceDebuffBmp , eax
+
+    invoke LoadBitmap, hInstance, playerStarBuff
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    playerStarBuffBmp , eax
+
+    invoke LoadBitmap, hInstance, playerScoreBuff
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    playerScoreBuffBmp , eax
+    
+    invoke WinMain, hInstance, NULL, arguments, SW_SHOWDEFAULT
+    invoke ExitProcess, eax ; cleanup & return to operating system
+
+    LoadBitmapFailed:
+        invoke StdOut, ADDR szLoadBitmapFailedMsg
+        invoke ExitProcess, 0
+
+    ; ----------------------------------------------------------------------
+
+    randomNumberGenerator PROC lowerLimit :DWORD, upperLimit :DWORD, seed : DWORD
+        ; 計算範圍大小
+        mov ebx, upperLimit
+        sub ebx, lowerLimit
+        add ebx, 1        ; 範圍大小 = upperLimit - lowerLimit + 1
+        ; 生成隨機數
+        mov eax, seed    ; 使用種子
+        xor edx, edx
+        div ebx           ; 除以範圍大小
+        mov eax, edx
+        add eax, lowerLimit       ; 添加偏移量
+        ret
+    randomNumberGenerator ENDP
+
+    ; ----------------------------------------------------------------------
+
+    initGameplay PROC
+        ; 初始化玩家
+        mov playerX, 100
+        mov playerY, 100
+        mov playerSpeed, 10
+
+        ; 初始化殭屍
+        lea ebx, zombies
+        mov ecx, MAX_ZOMBIES
+        InitializeZombieLoop:
+            mov dword ptr [ebx + zombieObj.x], 0
+            mov dword ptr [ebx + zombieObj.y], 0
+            mov dword ptr [ebx + zombieObj.active], 0
+            mov dword ptr [ebx + zombieObj.speed], 0
+            add ebx, TYPE zombieObj
+            loop InitializeZombieLoop
+            
+        ; 初始化道具
+        mov gadgetX, 884
+        mov gadgetY, 500
+        mov gadgetType, 0
+        mov gadgetAppear, 0
+        mov buffOn, 0
+        mov buffType, 0
+
+        ;其他初始化
+        mov beenHit, 0
+        mov score, 0
+        mov scoreIncrease, 7
+        ;初始化buffer
+        lea edi, scoreBuffer ; 將 scoreBuffer 的地址加載到 edi 寄存器
+        mov ecx, 256        ; 設置循環計數為 256（scoreBuffer 的大小）
+        InitializeLoop:
+            mov byte ptr [edi], 0 ; 將當前指向的字節設置為 0
+            inc edi               ; 移動到下一個字節
+            loop InitializeLoop   ; 循環直到 ecx 為 0
+      
+        ret
+    initGameplay ENDP
+
+    ; ----------------------------------------------------------------------
+
+    ;繪製圖片的函數
+    paintBackground PROC _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
+        ; 繪製背景
+        .if(GAMESTATE == 1)
+            invoke SelectObject, _hMemDC2, menuPageBmp
+        .elseif(GAMESTATE == 2)
+            invoke SelectObject, _hMemDC2, gameBackgroundBmp
+        .elseif(GAMESTATE == 3)
+            invoke SelectObject, _hMemDC2, gameBackgroundBmp
+        .endif
         
-        ;創建窗口
-        invoke CreateWindowEx,
-            NULL,
-            ADDR windowClassName,
-            ADDR windowTitle,
-            WS_OVERLAPPEDWINDOW,
-            CW_USEDEFAULT, ;窗口尺寸
-			CW_USEDEFAULT, 
-			CW_USEDEFAULT, ;窗口位置
-			CW_USEDEFAULT,
-            NULL,
-            NULL,
-            hInst,
-            NULL
-
-        ;前述函數將處理程序存入eax
-        mov manejador, eax
-
-        ;顯示窗口
-        invoke ShowWindow, manejador, SW_SHOWNORMAL
-
-        ;通過傳遞處理程序更新窗口
-        invoke UpdateWindow, manejador
-
-        ;循環以處理消息
-        .WHILE TRUE
-            ;執行讀取消息的函數
-            invoke GetMessage, ADDR mensaje, NULL, 0, 0
-            .BREAK .IF (!eax)
-
-            ;處理消息
-            invoke TranslateMessage, ADDR mensaje
-            invoke DispatchMessage, ADDR mensaje
-        .ENDW
-
-        ;將消息參數移到eax
-        mov  eax, mensaje.wParam
-
-        ;以eax的值結束並返回
+        invoke BitBlt, _hMemDC, 0, 0, 1792, 1024, _hMemDC2, 0, 0, SRCCOPY
         ret
-    WinMain endP
+    paintBackground ENDP
 
-    ;處理消息的函數
-    WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
-        ;檢查消息是否為關閉窗口
-        .IF uMsg==WM_DESTROY
-            ;執行退出
-            invoke PostQuitMessage, NULL
-        .ELSE
-            ;使用默認消息處理
-            Invoke DefWindowProc, hWnd, uMsg, wParam,lParam
-            ret NCU CSIE Assembly Language and System Programming
-        .ENDIF
+    ; ----------------------------------------------------------------------
 
-        ;將eax設為0
-        xor eax, eax
+    paintScoreBar PROC _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
+        LOCAL rect: RECT  ; RECT 結構定義了矩形左上角和右下角的坐標。
+
+            ; 格式化分數並寫入 scoreBuffer
+            invoke wsprintf, addr scoreBuffer, chr$("SCORE: %d "), score
+            ; 設置文本顏色
+            invoke SetTextColor, _hMemDC, 00FF8800h
+            ; 設置繪製文本的矩形區域
+            .if(GAMESTATE == 2)
+                mov   rect.left, 846
+                mov   rect.top, 10
+                mov   rect.right, 946
+                mov   rect.bottom, 50  
+            .elseif(GAMESTATE == 3)
+                mov   rect.left, 846
+                mov   rect.top, 492
+                mov   rect.right, 946
+                mov   rect.bottom, 532  
+            .endif
+
+            ; 繪製文本
+            invoke DrawText, _hMemDC, addr scoreBuffer, -1, addr rect, DT_CENTER or DT_VCENTER or DT_SINGLELINE
+
+            ret
+    paintScoreBar ENDP
+
+    ; ----------------------------------------------------------------------
+
+    paintPlayer PROC _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
+        .if(buffOn == 1)
+            .if(buffType == 1)
+                invoke SelectObject, _hMemDC2, playerSpeedBuffBmp
+            .elseif(buffType == 3)
+                invoke SelectObject, _hMemDC2, playerStarBuffBmp
+            .elseif(buffType == 4)
+                invoke SelectObject, _hMemDC2, playerScoreBuffBmp
+            .else
+                invoke SelectObject, _hMemDC2, playerBmp
+            .endif
+        .else
+            invoke SelectObject, _hMemDC2, playerBmp
+        .endif
+          invoke TransparentBlt, _hMemDC, playerX, playerY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+      ret
+    paintPlayer ENDP
+
+    ; ----------------------------------------------------------------------
+
+    paintZombie PROC _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
+        LOCAL zombieX :DWORD
+        LOCAL zombieY :DWORD
+
+        ; mov ecx, 0                  ; 初始化計數器
+        ; lea ebx, zombies            ; 獲取殭屍陣列的地址
+        ; DrawZombiesLoop:
+        ;     cmp [ebx + zombieObj.active], 0
+        ;     je SkipZombie           ; 如果殭屍未激活，跳過繪製
+
+        ;     ; 獲取殭屍的位置
+        ;     mov eax, [ebx + zombieObj.x] ; 將殭屍的 x 坐標移動到 eax 寄存器
+        ;     mov zombieX, eax           ; 再將 eax 寄存器的值移動到 zombieX 變數
+
+        ;     mov eax, [ebx + zombieObj.y] ; 將殭屍的 y 坐標移動到 eax 寄存器
+        ;     mov zombieY, eax           ; 再將 eax 寄存器的值移動到 zombieY 變數
+
+        ;     ; 繪製殭屍
+        ;     invoke SelectObject, _hMemDC2, zombieBmp
+        ;     invoke TransparentBlt, _hMemDC, zombieX, zombieY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+
+        ;     SkipZombie:
+        ;     add ebx, TYPE zombieObj ; 移動到下一個殭屍
+        ;     inc ecx
+        ;     cmp ecx, MAX_ZOMBIES
+        ;     jl DrawZombiesLoop      ; 繼續循環直到處理完所有殭屍
+        lea ebx, zombies    ; 獲取殭屍陣列的地址
+
+        ; 繪製第一個殭屍
+        cmp [ebx + zombieObj.active], 0
+        jne DrawFirstZombie
+        jmp SkipFirstZombie
+        DrawFirstZombie:
+            mov eax, [ebx + zombieObj.x]
+            mov zombieX, eax
+            mov eax, [ebx + zombieObj.y]
+            mov zombieY, eax
+            invoke SelectObject, _hMemDC2, zombieBmp
+            invoke TransparentBlt, _hMemDC, zombieX, zombieY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+        SkipFirstZombie:
+
+        ; 繪製第二個殭屍
+        add ebx, TYPE zombieObj
+        cmp [ebx + zombieObj.active], 0
+        jne DrawSecondZombie
+        jmp SkipSecondZombie
+        DrawSecondZombie:
+            mov eax, [ebx + zombieObj.x]
+            mov zombieX, eax
+            mov eax, [ebx + zombieObj.y]
+            mov zombieY, eax
+            invoke SelectObject, _hMemDC2, zombieBmp
+            invoke TransparentBlt, _hMemDC, zombieX, zombieY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+        SkipSecondZombie:
+
+        ; 繪製第三個殭屍
+        add ebx, TYPE zombieObj
+        cmp [ebx + zombieObj.active], 0
+        jne DrawThirdZombie
+        jmp SkipThirdZombie
+        DrawThirdZombie:
+            mov eax, [ebx + zombieObj.x]
+            mov zombieX, eax
+            mov eax, [ebx + zombieObj.y]
+            mov zombieY, eax
+            invoke SelectObject, _hMemDC2, zombieBmp
+            invoke TransparentBlt, _hMemDC, zombieX, zombieY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+        SkipThirdZombie:        
+
         ret
-    WndProc endp
+    paintZombie ENDP
 
-    ;=====================================================
-;原始碼結束
+    ; ----------------------------------------------------------------------
+
+    paintGadget PROC _hdc:HDC,_hMemDC:HDC, _hMemDC2:HDC
+
+        .if (gadgetAppear == 1)
+            .if (gadgetType == 1)
+                invoke SelectObject, _hMemDC2, gadgetLightingBmp
+            .elseif (gadgetType == 2)
+                invoke SelectObject, _hMemDC2, gadgetIceBmp
+            .elseif (gadgetType == 3)
+                invoke SelectObject, _hMemDC2, gadgetStarBmp
+            .elseif (gadgetType == 4)
+                invoke SelectObject, _hMemDC2, gadgetMoneyBmp
+            .endif
+            invoke TransparentBlt, _hMemDC, gadgetX, gadgetY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+        .endif
+
+        ret
+    paintGadget  ENDP
+
+    ; ----------------------------------------------------------------------
+
+    updateScrenn PROC
+        LOCAL hMemDC:HDC
+        LOCAL hMemDC2:HDC
+        LOCAL hBitmap:HDC
+        LOCAL hDC:HDC
+
+        invoke BeginPaint, hWnd, ADDR paintstruct   ;BeginPaint函數為繪畫準備指定的窗口，並用有關繪畫的信息填充 PAINTSTRUCT 結構。
+        mov hDC, eax
+        invoke CreateCompatibleDC, hDC  ;CreateCompatibleDC函數創建與指定設備兼容的內存設備內容 (DC)
+        mov hMemDC, eax
+        invoke CreateCompatibleDC, hDC ; for double buffering
+        mov hMemDC2, eax
+        invoke CreateCompatibleBitmap, hDC, 1792, 1024
+        mov hBitmap, eax
+
+        invoke SelectObject, hMemDC, hBitmap
+
+        invoke paintBackground, hDC, hMemDC, hMemDC2
+        .if(GAMESTATE == 2)
+            invoke paintGadget, hDC, hMemDC, hMemDC2
+            invoke paintZombie, hDC, hMemDC, hMemDC2
+            invoke paintPlayer, hDC, hMemDC, hMemDC2
+            invoke paintScoreBar, hDC, hMemDC, hMemDC2
+        .elseif(GAMESTATE == 3)
+            invoke paintScoreBar, hDC, hMemDC, hMemDC2
+        .endif
+        invoke BitBlt, hDC, 0, 0, 1792, 1024, hMemDC, 0, 0, SRCCOPY
+
+        invoke DeleteDC, hMemDC     ;DeleteDC 函數刪除指定的設備內容 (DC)。
+        invoke DeleteDC, hMemDC2
+        invoke DeleteObject, hBitmap
+        invoke EndPaint, hWnd, ADDR paintstruct ;EndPaint 函數標記指定窗口中的繪製結束。每次調用 BeginPaint 函數時都需要此函數，但僅在繪製完成後才需要
+        ret
+    updateScrenn ENDP   
+
+    ; ----------------------------------------------------------------------
+
+    updatePlayerPosition PROC
+        mov edx, playerSpeed
+        .if keyWPressed == 1
+            .if playerY > 20
+                sub playerY, edx
+            .endif
+        .endif 
+        .if keySPressed == 1
+            .if playerY < 934
+                add playerY, edx
+            .endif
+        .endif
+        .if keyAPressed == 1
+            .if playerX > 20
+                sub playerX, edx
+            .endif
+        .endif
+        .if keyDPressed == 1
+            .if playerX < 1712
+                add playerX, edx
+            .endif
+        .endif
+        invoke InvalidateRect, hWnd, NULL, TRUE
+    ret
+    updatePlayerPosition ENDP
+
+    ; ----------------------------------------------------------------------
+
+    formatZombiesInfo PROC
+        LOCAL zombieX :DWORD
+        LOCAL zombieY :DWORD
+        LOCAL isActive:DWORD
+        LOCAL bufferPos:DWORD
+        LOCAL formattedLength:DWORD
+
+        mov ecx, 0                   ; 初始化計數器
+        lea ebx, zombies             ; 獲取殭屍陣列的地址
+        lea edi, infoBuffer    ; 獲取資訊緩衝區的地址
+        mov bufferPos, edi           ; 記住緩衝區的起始位置
+
+        FormatLoop:
+            cmp ecx, MAX_ZOMBIES
+            jge EndFormat            ; 如果處理完所有殭屍，結束循環
+
+            ; 從殭屍陣列中獲取資訊
+            mov eax, [ebx + zombieObj.x]
+            mov zombieX, eax
+            mov eax, [ebx + zombieObj.y]
+            mov zombieY, eax
+            mov eax, [ebx + zombieObj.active]
+            mov isActive, eax
+
+            ; 格式化到緩衝區中
+            cmp ecx, 2
+            je  ToWrite
+            jmp Skip
+
+            ToWrite:
+            invoke wsprintf, addr infoBuffer, chr$("X:%d,Y:%d,A:%d"), zombieX, zombieY, isActive
+            mov formattedLength, eax   ; 獲取格式化字串的長度
+
+            Skip:
+            ; 更新緩衝區位置
+            add edi, 30   ; 根據格式化字串長度更新緩衝區指針
+            add ebx, SIZEOF zombieObj    ; 移動到下一個殭屍
+            inc ecx
+            jmp FormatLoop
+
+        EndFormat:
+            ; 在緩衝區的最後添加結束字元
+            mov byte ptr [edi], 0
+
+        ret
+    formatZombiesInfo ENDP
+
+    ; ----------------------------------------------------------------------
+
+    activateZombie PROC zombieSpeed :DWORD;遍歷十隻殭屍，將一隻未激活的殭屍激活，如果十隻都被激活則不做事
+        mov ecx, 0
+        lea ebx, zombies
+        ActivateZombieLoop:
+            cmp [ebx + zombieObj.active], 0
+            je ToActivateZombie
+
+            add ebx, TYPE zombieObj
+            inc ecx
+            cmp ecx, MAX_ZOMBIES
+            jl ActivateZombieLoop
+        jmp EndActivateZombie
+
+        ToActivateZombie:
+            ; 激活殭屍並設定初始值位置
+            mov [ebx + zombieObj.x], 550
+            mov [ebx + zombieObj.y], 550
+            mov [ebx + zombieObj.active], 1
+            mov eax, zombieSpeed
+            mov [ebx + zombieObj.speed], eax
+        EndActivateZombie:
+        ret
+    activateZombie ENDP
+
+    ; ----------------------------------------------------------------------
+
+    ; The main entry point for a Windows application
+    WinMain PROC hInst     :DWORD,
+                hPrevInst :DWORD,
+                CmdLine   :DWORD,
+                CmdShow   :DWORD
+
+        LOCAL wc   :WNDCLASSEX
+        LOCAL msg  :MSG     ;MSG結構包含來自Thread的消息隊列的信息
+
+        LOCAL Wwd  :DWORD
+        LOCAL Wht  :DWORD
+        LOCAL Wtx  :DWORD
+        LOCAL Wty  :DWORD
+
+        szText szClassName,"Windowclass1"
+        
+        ;==================================================
+        ; Fill WNDCLASSEX structure with required variables
+        ;==================================================
+
+        mov wc.cbSize,         sizeof WNDCLASSEX
+        mov wc.style,          CS_HREDRAW or CS_VREDRAW \
+                            or CS_BYTEALIGNWINDOW
+        mov wc.lpfnWndProc,    offset WndProc       ;本視窗的訊息處裡函式
+        mov wc.cbClsExtra,     NULL                 ;附加引數
+        mov wc.cbWndExtra,     NULL                 ;附加引數
+        m2m wc.hInstance,      hInst                ;當前應用程式的例向控制代碼
+        mov wc.hbrBackground,  COLOR_BTNFACE+1      ;視窗背景色
+        mov wc.lpszMenuName,   NULL                 ;視窗選單
+        mov wc.lpszClassName,  offset szClassName   ;視窗結構體的名稱 ;給視窗結構體命名，CreateWindow函式將根據視窗結構體名稱來建立視窗
+        ; RC 文件中的圖標 ID
+        invoke LoadIcon,hInst, IDI_APPLICATION      ;視窗圖式
+        mov wc.hIcon,          eax
+        invoke LoadCursor,NULL,IDC_ARROW            ;視窗游標
+        mov wc.hCursor,        eax
+        mov wc.hIconSm,        0
+
+        invoke RegisterClassEx, ADDR wc             ;註冊視窗
+
+
+        ;================================
+        ; Calculate window size & position
+        ;================================
+
+        ; get screen dimensions
+        mov eax, windowWidth   
+        mov Wwd, eax           
+        mov eax, windowHeight 
+        mov Wht, eax           
+
+        ; calculate top left X & Y co-ordinates
+        invoke GetSystemMetrics, SM_CXSCREEN 
+        invoke TopXY, Wwd, eax
+        mov Wtx, eax
+
+        invoke GetSystemMetrics, SM_CYSCREEN 
+        invoke TopXY, Wht, eax
+        mov Wty, eax
+
+        ; ==================================
+        ; Center the window on the screen
+        ; ==================================
+        invoke CreateWindowEx, WS_EX_OVERLAPPEDWINDOW,
+                                ADDR szClassName,
+                                ADDR szDisplayGameName,
+                                WS_OVERLAPPEDWINDOW,
+                                Wtx, Wty, Wwd, Wht,
+                                NULL, NULL,
+                                hInst, NULL
+
+        mov   hWnd,eax  ; copy return value into handle DWORD
+
+        invoke LoadMenu,hInst,600                 ; load resource menu
+        invoke SetMenu,hWnd,eax                   ; set it to main window
+
+        invoke ShowWindow,hWnd,SW_SHOWNORMAL      ; display the window
+        invoke UpdateWindow,hWnd                  ; update the display
+
+        ;===================================
+        ; Loop until PostQuitMessage is sent
+        ;===================================
+
+        StartLoop:
+        invoke GetMessage,ADDR msg,NULL,0,0         ; get each message
+        cmp eax, 0                                  ; exit if GetMessage()
+        je ExitLoop                                 ; returns zero
+        invoke TranslateMessage, ADDR msg           ; translate it
+        invoke DispatchMessage,  ADDR msg           ; send it to message proc
+        jmp StartLoop
+        ExitLoop:
+
+        return msg.wParam   ;wParam:指定有關消息的附加信息。確切含義取決於消息成員的值
+
+    WinMain ENDP
+
+    ; ----------------------------------------------------------------------
+
+    ; Processes messages sent to a window
+    WndProc proc hWin :DWORD,
+        uMsg   :DWORD,
+        wParam :DWORD,
+        lParam :DWORD
+
+        LOCAL hDC    :DWORD
+        LOCAL Ps     :PAINTSTRUCT
+        LOCAL rect   :RECT
+        LOCAL Font   :DWORD
+        LOCAL Font2  :DWORD
+        LOCAL hOld   :DWORD
+        LOCAL memDC  :DWORD
+
+         ; message handling
+        .if uMsg == WM_COMMAND
+            ;------------------------------------------------------------------
+            ; WM_COMMAND message is sent when the user selects a command item
+            ; such as a menu item, control, or accelerator key combination.
+            ; ref: https://learn.microsoft.com/zh-tw/windows/win32/menurc/wm-command
+            ;------------------------------------------------------------------
+            
+            ;======== menu commands ========
+
+            .if wParam == 1000 ; if the user selects the Exit menu item
+                invoke SendMessage,hWin,WM_SYSCOMMAND,SC_CLOSE,NULL    
+            .elseif wParam == 2000  ; if the user selects the About menu item
+                szText TheMsg,"Please visit: https://github.com/xxrjun/battle-royale"
+                invoke MessageBox,hWin,ADDR TheMsg,ADDR szDisplayGameName,MB_OK
+            .endif
+        .elseif uMsg == WM_CREATE
+            ; ---------------------------------------------------------------------
+            ; WM_CREATE message is sent when an application requests that a window
+            ; be created by calling the CreateWindowEx or CreateWindow function.
+            ; ref: https://learn.microsoft.com/zh-tw/windows/win32/winmsg/wm-create
+            ; ---------------------------------------------------------------------
+            mov     hEventStart, eax
+            invoke SetTimer, hWin, TIMER_SEED, 1, NULL ; seed generator
+            invoke SetTimer, hWin, TIMER_SEED2, 500, NULL ; seed generator
+
+            ; play background music
+            mov   open_lpstrDeviceType, 0h                       ; 0h = default device to play the file
+            mov   open_lpstrElementName, OFFSET backgroundMusic  ; file to play
+            invoke mciSendCommandA, 0, MCI_OPEN, MCI_OPEN_ELEMENT, OFFSET open_dwCallback  ; open the device
+            cmp   eax,0h      ; if the device was opened successfully
+            je    next		  ; jump to next
+            next:	
+                invoke mciSendCommandA,open_wDeviceID,MCI_PLAY,MCI_NOTIFY,offset play_dwCallback ; start playing the file
+        .elseif uMsg == WM_TIMER
+            .if wParam == TIMER_SEED
+              add seedA, 17
+            .elseif wParam == TIMER_SEED2
+              add seedB, 1
+            .elseif wParam == 1 
+                invoke randomNumberGenerator, 3, 9, seedB
+                invoke activateZombie,eax
+            .elseif wParam == 2 ;生成新道具
+                invoke randomNumberGenerator, 100, 1692, seedA
+                mov gadgetX, eax
+                invoke randomNumberGenerator, 150, 874, seedA
+                mov gadgetY, eax
+                invoke randomNumberGenerator, 1, 4, seedB
+                mov gadgetType, eax
+                mov gadgetAppear, 1
+            .elseif wParam == TIMER_BUFF ; 檢查是否是道具效果計時器
+                mov buffOn, 0        ; 關閉道具效果
+                invoke KillTimer, hWnd, TIMER_BUFF ; 銷毀計時器
+            .elseif wParam == TIMER_SCORE 
+                mov eax, scoreIncrease
+                add score, eax
+            .endif 
+        .elseif uMsg == WM_PAINT    ;當系統或其他應用程序請求繪製應用程序窗口的一部分時，會發送 WM_PAINT 消息
+            invoke updateScrenn
+        .elseif uMsg == WM_ERASEBKGND ;避免畫面更新閃爍
+            mov eax, 1
+        .elseif uMsg == WM_KEYDOWN
+            .if wParam == VK_RETURN ; Enter 鍵
+                .if (GAMESTATE == 1)
+                  mov eax, offset ThreadProc
+                  invoke CreateThread, NULL, NULL, eax, NULL, NORMAL_PRIORITY_CLASS, ADDR threadID 
+                  invoke SetTimer, hWin, 1, 10000, NULL ; 設置計時器，ID為1，殭屍生成觸發器
+                  invoke SetTimer, hWin, 2, 7548, NULL ; 設置計時器，ID為2，道具生成觸發器
+                  invoke SetTimer, hWin, TIMER_SCORE, 500, NULL ; 設置計時器，分數加分觸發器
+                  invoke initGameplay
+                  mov GAMESTATE, 2
+                  invoke randomNumberGenerator, 3, 9, seedB
+                  invoke activateZombie,eax
+                .elseif (GAMESTATE == 3)
+                    mov GAMESTATE, 1
+                    invoke InvalidateRect, hWnd, NULL, TRUE
+                .endif
+            .endif
+              .if wParam == VK_I
+                  invoke randomNumberGenerator, 5, 10, seedB
+                  invoke wsprintf, ADDR infoBuffer, chr$("Random Number: %d"), eax
+                  invoke MessageBox, hWin, ADDR infoBuffer, ADDR szDisplayName, MB_OK
+              .elseif wParam == VK_W
+                  mov keyWPressed, 1
+              .elseif wParam == VK_S
+                  mov keySPressed, 1
+              .elseif wParam == VK_A
+                  mov keyAPressed, 1
+              .elseif wParam == VK_D
+                  mov keyDPressed, 1
+              .endif
+        .elseif uMsg == WM_KEYUP
+              .if wParam == VK_W
+                  mov keyWPressed, 0
+              .elseif wParam == VK_S
+                  mov keySPressed, 0
+              .elseif wParam == VK_A
+                  mov keyAPressed, 0
+              .elseif wParam == VK_D
+                  mov keyDPressed, 0
+              .endif        
+        .elseif uMsg == WM_FINISH
+            invoke InvalidateRect, hWnd, NULL, TRUE ;;addr rect, TRUE
+            .if(GAMESTATE == 2)
+                .if beenHit == 1
+                    mov GAMESTATE, 3
+                    
+                    invoke KillTimer, hWin, 1
+                    invoke KillTimer, hWin, 2
+                    invoke KillTimer, hWin, TIMER_SCORE
+                    invoke KillTimer, hWin, TIMER_BUFF
+                .endif
+            .endif
+        .elseif uMsg == WM_DESTROY                                        ; if the user closes our window 
+            invoke PostQuitMessage,NULL          
+        .else
+            invoke DefWindowProc, hWin, uMsg, wParam, lParam                         ; quit our application 
+        .endif                            ; quit our application 
+        ret
+    WndProc ENDP
+
+    ; ----------------------------------------------------------------------
+
+    TopXY PROC wDim:DWORD, sDim:DWORD
+
+        ; ----------------------------------------------------
+        ; This procedure calculates the top X & Y co-ordinates
+        ; for the CreateWindowEx call in the WinMain procedure
+        ; ----------------------------------------------------
+
+        shr sDim, 1      ; divide screen dimension by 2
+        shr wDim, 1      ; divide window dimension by 2
+        mov eax, wDim    ; copy window dimension into eax
+        sub sDim, eax    ; sub half win dimension from half screen dimension
+
+        return sDim
+
+    TopXY ENDP
+
+    ; ----------------------------------------------------------------------
+
+    moveZombies PROC
+        LOCAL zombieX:DWORD
+        LOCAL zombieY:DWORD
+        LOCAL zombieSpeed:DWORD
+
+
+        mov ecx, 0                  ; 初始化計數器
+        lea ebx, zombies            ; 獲取殭屍陣列的地址
+        MoveZombiesLoop:
+            cmp [ebx + zombieObj.active], 0
+            je SkipZombieInLoop     ; 如果殭屍未激活，跳過此殭屍
+
+            ; 獲取殭屍的位置
+            mov eax, [ebx + zombieObj.x] ; 將殭屍的 x 坐標移動到 eax 寄存器
+            mov [zombieX], eax           ; 再將 eax 寄存器的值移動到 zombieX 變數
+
+            mov eax, [ebx + zombieObj.y] ; 將殭屍的 y 坐標移動到 eax 寄存器
+            mov [zombieY], eax           ; 再將 eax 寄存器的值移動到 zombieY 變數
+
+            .if(buffOn == 1)
+            .if buffType == 2
+                mov eax, 0 
+            .else
+                mov eax, [ebx + zombieObj.speed]     
+            .endif
+            .else
+            mov eax, [ebx + zombieObj.speed]     
+            .endif
+
+            ; 殭屍 X 軸的移動
+            mov edx, zombieX
+            .if playerX > edx
+                add zombieX, eax
+            .elseif playerX < edx
+                sub zombieX, eax
+            .endif
+
+            ; 殭屍 Y 軸的移動
+            mov edx, zombieY
+            .if playerY > edx
+                add zombieY, eax
+            .elseif playerY < edx
+                sub zombieY, eax
+            .endif
+
+            ; 更新殭屍的位置
+            mov eax, zombieX
+            mov [ebx + zombieObj.x], eax
+            mov eax, zombieY
+            mov [ebx + zombieObj.y], eax
+
+            SkipZombieInLoop:
+            add ebx, TYPE zombieObj ; 移動到下一個殭屍
+            inc ecx
+            cmp ecx, MAX_ZOMBIES
+            jl MoveZombiesLoop      ; 繼續循環直到處理完所有殭屍
+
+        ret
+    moveZombies ENDP
+
+    ; ----------------------------------------------------------------------
+
+    checkZombieCollision PROC
+        LOCAL zombieX:DWORD
+        LOCAL zombieY:DWORD
+
+        mov ecx, 0                   ; 初始化計數器
+        lea ebx, zombies             ; 獲取殭屍陣列的地址
+        CheckCollisionLoop:
+            cmp [ebx + zombieObj.active], 0
+            je SkipZombieInCollisionCheck    ; 如果殭屍未激活，跳過此殭屍
+
+            ; 獲取殭屍的位置
+            mov eax, [ebx + zombieObj.x]
+            mov [zombieX], eax
+            mov eax, [ebx + zombieObj.y]
+            mov [zombieY], eax
+
+            ; 判斷 X 座標是否重疊
+            mov eax, playerX;eax存判斷boundary
+            mov edx, zombieX
+            add edx, 25     ;edx存判斷子(殭屍座標+殭屍size)
+            .if edx > eax;X small boundary
+                add eax, 50
+                .if edx < eax;X large boundary
+                    ; 判斷 Y 座標是否重疊
+                    mov eax, playerY
+                    mov edx, zombieY
+                    add edx, 25
+                    .if edx > eax;Y small boundary
+                        add eax, 50
+                        .if edx < eax;Y large boundary
+                            .if buffOn == 1
+                                .if buffType == 3
+                                    mov beenHit, 0
+                                .else
+                                    mov beenHit, 1 ; 發生碰撞
+                                .endif
+                            .else
+                                mov beenHit, 1 ; 發生碰撞
+                            .endif
+                        .endif
+                    .endif
+                .endif
+            .endif
+
+            SkipZombieInCollisionCheck:
+                add ebx, TYPE zombieObj     ; 移動到下一個殭屍
+                inc ecx
+                cmp ecx, MAX_ZOMBIES
+                jl CheckCollisionLoop        ; 繼續循環直到處理完所有殭屍
+
+        ret
+    checkZombieCollision ENDP
+
+    ; ----------------------------------------------------------------------
+
+    checkGadgetCollision PROC
+        ; 判斷 X 座標是否重疊
+        mov eax, playerX;eax存判斷boundary
+        mov edx, gadgetX
+        add edx, 25     ;edx存判斷子(道具座標+道具size)
+        .if edx > eax;X small boundary
+            add eax, 50
+            .if edx < eax;X large boundary
+                ; 判斷 Y 座標是否重疊
+                mov eax, playerY
+                mov edx, gadgetY
+                add edx, 25
+                .if edx > eax;Y small boundary
+                    add eax, 50
+                    .if edx < eax;Y large boundary
+                        mov gadgetAppear, 0; 吃到道具
+                        mov eax, gadgetType
+                        mov buffType, eax
+                        mov buffOn, 1          ; 啟用道具效果
+                        invoke SetTimer, hWnd, TIMER_BUFF, 3000, NULL ; 設置一次性計時器，ID 為 TIMER_BUFF，3秒後觸發
+                    .endif
+                .endif
+            .endif
+        .endif
+
+        ret
+    checkGadgetCollision ENDP
+
+    ; ----------------------------------------------------------------------
+
+    checkBuffEffect PROC
+        .if (buffOn == 1)
+            .if(buffType == 1)
+            mov playerSpeed, 20
+            .elseif(buffType == 4)
+            mov scoreIncrease, 99
+            .endif
+        .elseif
+            mov playerSpeed, 10
+            mov scoreIncrease, 7
+        .endif
+        ret
+    checkBuffEffect ENDP
+
+    ; ----------------------------------------------------------------------
+
+    ThreadProc PROC USES ecx Param:DWORD
+        ; 線程循環
+        ThreadLoop:
+            invoke Sleep, 100  ; 等待 100 毫秒
+
+            invoke updatePlayerPosition
+            invoke moveZombies
+            invoke checkZombieCollision
+            invoke checkGadgetCollision
+            invoke checkBuffEffect
+
+            invoke SendMessage, hWnd, WM_FINISH, NULL, NULL
+
+            .if beenHit == 1
+                jmp ExitThreadLoop
+            .endif
+
+            jmp ThreadLoop
+
+        ExitThreadLoop:
+            ; 清理和終止線程前的代碼
+            ret
+    ThreadProc ENDP
+
+    ; ----------------------------------------------------------------------
+
 end start
