@@ -88,12 +88,15 @@ include battle_royale.inc ;函式庫
     CREF_TRANSPARENT  EQU 00FFFFFFh
 
     TIMER_BUFF equ 101
+    TIMER_SCORE equ 102
+
 ;帶有賦值的變數聲明
 .data
     windowClassName     db 'Window',0
     szDisplayName         db 'Battle Royale',0
     paintstruct   PAINTSTRUCT <>
     zombieInfoBuffer        db 256 dup(0)
+    scoreBuffer             db 256 dup(0)
 
     backgroundBmp    dd  0      ;圖片檔
     playerBmp        dd  0
@@ -121,6 +124,8 @@ include battle_royale.inc ;函式庫
     keyDPressed dd 0
 
     zombies zombieObj MAX_ZOMBIES dup({0, 0, 0})
+
+    score  dd  0
 
 ;尚未賦值的變數聲明
 .data?
@@ -159,12 +164,30 @@ start:
     invoke ExitProcess, eax
 
     ;繪製圖片的函數
-    paintBackground proc _hdc:HDC,_hMemDC:HDC, _hMemDC2:HDC
-        LOCAL rect   :RECT; RECT 結構定義了矩形左上角和右下角的坐標。
+    paintBackground proc _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
+        ; 繪製背景
         invoke SelectObject, _hMemDC2, backgroundBmp
         invoke BitBlt, _hMemDC, 0, 0, 1792, 1024, _hMemDC2, 0, 0, SRCCOPY
         ret
     paintBackground endp
+
+    paintScoreBar proc _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
+        LOCAL rect: RECT  ; RECT 結構定義了矩形左上角和右下角的坐標。
+
+            ; 格式化分數並寫入 scoreBuffer
+            invoke wsprintf, addr scoreBuffer, chr$("SCORE: %d "), score
+            ; 設置文本顏色
+            invoke SetTextColor, _hMemDC, 00FF8800h
+            ; 設置繪製文本的矩形區域
+            mov   rect.left, 846
+            mov   rect.top, 10
+            mov   rect.right, 946
+            mov   rect.bottom, 50  
+            ; 繪製文本
+            invoke DrawText, _hMemDC, addr scoreBuffer, -1, addr rect, DT_CENTER or DT_VCENTER or DT_SINGLELINE
+
+            ret
+    paintScoreBar endp
 
     paintPlayer proc _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
           cmp buffOn, 1                ; 檢查 buffOn 是否為 1
@@ -289,6 +312,7 @@ start:
         invoke paintPlayer, hDC, hMemDC, hMemDC2
         invoke paintZombie, hDC, hMemDC, hMemDC2
         invoke paintGadget, hDC, hMemDC, hMemDC2
+        invoke paintScoreBar, hDC, hMemDC, hMemDC2
         invoke BitBlt, hDC, 0, 0, 1792, 1024, hMemDC, 0, 0, SRCCOPY
 
         invoke DeleteDC, hMemDC     ;DeleteDC 函數刪除指定的設備內容 (DC)。
@@ -472,7 +496,7 @@ formatZombiesInfo ENDP
             invoke CreateThread, NULL, NULL, eax, NULL, NORMAL_PRIORITY_CLASS, ADDR threadID 
             invoke SetTimer, hWin, 1, 3000, NULL ; 設置計時器，ID為1，殭屍生成觸發器
             invoke SetTimer, hWin, 2, 5000, NULL ; 設置計時器，ID為2，道具生成觸發器
-            ;生成20~1500的隨機整數並賦予給gadgetX
+            invoke SetTimer, hWin, TIMER_SCORE, 500, NULL ; 設置計時器，分數加分觸發器
         .elseif uMsg == WM_TIMER
             .if wParam == 1 ;遍歷十隻殭屍，將一隻未激活的殭屍激活，如果十隻都被激活則不做事
                 mov ecx, 0
@@ -498,6 +522,8 @@ formatZombiesInfo ENDP
             .elseif wParam == TIMER_BUFF ; 檢查是否是道具效果計時器
                 mov buffOn, 0        ; 關閉道具效果
                 invoke KillTimer, hWnd, TIMER_BUFF ; 銷毀計時器
+            .elseif wParam == TIMER_SCORE 
+                add score, 7
             .endif 
         .elseif uMsg == WM_PAINT    ;當系統或其他應用程序請求繪製應用程序窗口的一部分時，會發送 WM_PAINT 消息
             invoke screenUpdate
