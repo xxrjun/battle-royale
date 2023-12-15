@@ -1,9 +1,17 @@
 100 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\background.bmp"
 101 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\home_page.bmp"
+
 1001 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\player.bmp"
 1002 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\zombie.bmp"
-1003 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gadget.bmp"
-1004 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\player_speedBuff.bmp"
+1003 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gadget_lighting.bmp"
+1004 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gadget_ice.bmp"
+1005 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gadget_star.bmp"
+1006 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gadget_money.bmp"
+
+1010 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\player_speedBuff.bmp"
+1011 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\zombie_iceDebuff.bmp"
+1012 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\player_starBuff.bmp"
+1013 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\player_scoreBuff.bmp"
 
 
 

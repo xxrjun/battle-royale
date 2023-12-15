@@ -83,14 +83,21 @@ include battle_royale.inc ;函式庫
     home_page   equ 101
     player      equ 1001
     zombie      equ 1002
-    gadget      equ 1003
-    player_speedBuff  equ 1004
+    gadget_lighting      equ 1003
+    gadget_ice     equ 1004
+    gadget_star      equ 1005
+    gadget_money      equ 1006
+    player_speedBuff  equ 1010
+    zombie_iceDebuff  equ 1011
+    player_starBuff  equ 1012
+    player_scoreBuff  equ 1013
     MAX_ZOMBIES equ 3
     CREF_TRANSPARENT  EQU 00FFFFFFh
 
     TIMER_BUFF equ 105
     TIMER_SCORE equ 106
     TIMER_SEED  equ 107
+    TIMER_SEED2  equ 108
 
 ;帶有賦值的變數聲明
 .data
@@ -106,8 +113,14 @@ include battle_royale.inc ;函式庫
     home_pageBmp     dd  0
     playerBmp        dd  0
     zombieBmp        dd  0
-    gadgetBmp        dd  0
-    player_speedBuffBmp dd  0
+    gadget_lightingBmp      dd 0
+    gadget_iceBmp      dd 0
+    gadget_starBmp       dd 0
+    gadget_moneyBmp       dd 0
+    player_speedBuffBmp  dd 0
+    zombie_iceDebuffBmp  dd 0
+    player_starBuffBmp  dd 0
+    player_scoreBuffBmp  dd 0
     playerX          dd  250     ; 玩家位置
     playerY          dd  250 
     playerSpeed      dd  10
@@ -115,7 +128,7 @@ include battle_royale.inc ;函式庫
 
     gadgetX         dd  884
     gadgetY         dd  500
-    gadgetType      dd  0
+    gadgetType      dd  0 ;   1-閃電,2-冰凍,3-無敵,4-分數加速累積
     gadgetAppear    dd  0
     buffOn          dd  0
     buffType        dd  0
@@ -128,6 +141,7 @@ include battle_royale.inc ;函式庫
     zombies zombieObj MAX_ZOMBIES dup({0, 0, 0, 0})
 
     score  dd  0
+    scoreIncrease dd  0
 
     seedA  dd  109403021
     seedB  dd  109403019
@@ -162,10 +176,22 @@ start:
     mov    playerBmp , eax
     invoke LoadBitmap, hInstance, zombie
     mov    zombieBmp , eax
-    invoke LoadBitmap, hInstance, gadget
-    mov    gadgetBmp , eax
+    invoke LoadBitmap, hInstance, gadget_lighting
+    mov    gadget_lightingBmp , eax
+    invoke LoadBitmap, hInstance, gadget_ice
+    mov    gadget_iceBmp , eax
+    invoke LoadBitmap, hInstance, gadget_star
+    mov    gadget_starBmp , eax
+    invoke LoadBitmap, hInstance, gadget_money
+    mov    gadget_moneyBmp , eax
     invoke LoadBitmap, hInstance, player_speedBuff
     mov    player_speedBuffBmp , eax
+    invoke LoadBitmap, hInstance, zombie_iceDebuff
+    mov    zombie_iceDebuffBmp , eax
+    invoke LoadBitmap, hInstance, player_starBuff
+    mov    player_starBuffBmp , eax
+    invoke LoadBitmap, hInstance, player_scoreBuff
+    mov    player_scoreBuffBmp , eax
 
     invoke WinMain, hInstance, NULL, arguments, SW_SHOWDEFAULT
     invoke ExitProcess, eax
@@ -212,6 +238,7 @@ randomNumberGenerator ENDP
         ;其他初始化
         mov beenHit, 0
         mov score, 0
+        mov scoreIncrease, 7
         ;初始化buffer
         lea edi, scoreBuffer ; 將 scoreBuffer 的地址加載到 edi 寄存器
         mov ecx, 256        ; 設置循環計數為 256（scoreBuffer 的大小）
@@ -265,21 +292,21 @@ randomNumberGenerator ENDP
     paintScoreBar endp
 
     paintPlayer proc _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
-          cmp buffOn, 1                ; 檢查 buffOn 是否為 1
-          jne UseOriginalBmp           ; 如果不為 1，使用原來的位圖
-
-          ; 如果 buffOn 為 1，使用加速狀態的位圖
-          invoke SelectObject, _hMemDC2, player_speedBuffBmp
-          jmp PaintBmp
-
-      UseOriginalBmp:
-          ; 使用原來的位圖
-          invoke SelectObject, _hMemDC2, playerBmp
-
-      PaintBmp:
-          ; 繪製玩家
+        .if(buffOn == 1)
+            .if(buffType == 1)
+                invoke SelectObject, _hMemDC2, player_speedBuffBmp
+            .elseif(buffType == 3)
+                invoke SelectObject, _hMemDC2, player_starBuffBmp
+            .elseif(buffType == 4)
+                invoke SelectObject, _hMemDC2, player_scoreBuffBmp
+            .else
+                invoke SelectObject, _hMemDC2, playerBmp
+            .endif
+        .else
+            invoke SelectObject, _hMemDC2, playerBmp
+        .endif
           invoke TransparentBlt, _hMemDC, playerX, playerY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
-          ret
+      ret
     paintPlayer endp
 
 
@@ -356,13 +383,20 @@ randomNumberGenerator ENDP
     paintZombie endp
 
     paintGadget proc _hdc:HDC,_hMemDC:HDC, _hMemDC2:HDC
-        cmp gadgetAppear, 1     ; 檢查 gadgetAppear 是否為true(1)
-        jne paintGadgetEnd      ; 如果不為1，跳轉到過程的末尾
 
-        invoke SelectObject, _hMemDC2, gadgetBmp
-        invoke TransparentBlt, _hMemDC, gadgetX, gadgetY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+        .if (gadgetAppear == 1)
+            .if (gadgetType == 1)
+                invoke SelectObject, _hMemDC2, gadget_lightingBmp
+            .elseif (gadgetType == 2)
+                invoke SelectObject, _hMemDC2, gadget_iceBmp
+            .elseif (gadgetType == 3)
+                invoke SelectObject, _hMemDC2, gadget_starBmp
+            .elseif (gadgetType == 4)
+                invoke SelectObject, _hMemDC2, gadget_moneyBmp
+            .endif
+            invoke TransparentBlt, _hMemDC, gadgetX, gadgetY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+        .endif
 
-        paintGadgetEnd:
         ret
     paintGadget  endp
 
@@ -385,9 +419,9 @@ randomNumberGenerator ENDP
 
         invoke paintBackground, hDC, hMemDC, hMemDC2
         .if(GAMESTATE == 2)
-            invoke paintPlayer, hDC, hMemDC, hMemDC2
-            invoke paintZombie, hDC, hMemDC, hMemDC2
             invoke paintGadget, hDC, hMemDC, hMemDC2
+            invoke paintZombie, hDC, hMemDC, hMemDC2
+            invoke paintPlayer, hDC, hMemDC, hMemDC2
             invoke paintScoreBar, hDC, hMemDC, hMemDC2
         .elseif(GAMESTATE == 3)
             invoke paintScoreBar, hDC, hMemDC, hMemDC2
@@ -593,11 +627,12 @@ activateZombie ENDP
         .if uMsg == WM_CREATE
             mov     hEventStart, eax
             invoke SetTimer, hWin, TIMER_SEED, 1, NULL ; seed generator
+            invoke SetTimer, hWin, TIMER_SEED2, 500, NULL ; seed generator
         .elseif uMsg == WM_TIMER
             .if wParam == TIMER_SEED
               add seedA, 17
-              invoke randomNumberGenerator, 1, 7, seedB
-              add seedB, eax
+            .elseif wParam == TIMER_SEED2
+              add seedB, 1
             .elseif wParam == 1 
                 invoke randomNumberGenerator, 3, 9, seedB
                 invoke activateZombie,eax
@@ -606,12 +641,15 @@ activateZombie ENDP
                 mov gadgetX, eax
                 invoke randomNumberGenerator, 150, 874, seedA
                 mov gadgetY, eax
+                invoke randomNumberGenerator, 1, 4, seedB
+                mov gadgetType, eax
                 mov gadgetAppear, 1
             .elseif wParam == TIMER_BUFF ; 檢查是否是道具效果計時器
                 mov buffOn, 0        ; 關閉道具效果
                 invoke KillTimer, hWnd, TIMER_BUFF ; 銷毀計時器
             .elseif wParam == TIMER_SCORE 
-                add score, 7
+                mov eax, scoreIncrease
+                add score, eax
             .endif 
         .elseif uMsg == WM_PAINT    ;當系統或其他應用程序請求繪製應用程序窗口的一部分時，會發送 WM_PAINT 消息
             invoke screenUpdate
@@ -623,7 +661,7 @@ activateZombie ENDP
                   mov eax, offset ThreadProc
                   invoke CreateThread, NULL, NULL, eax, NULL, NORMAL_PRIORITY_CLASS, ADDR threadID 
                   invoke SetTimer, hWin, 1, 10000, NULL ; 設置計時器，ID為1，殭屍生成觸發器
-                  invoke SetTimer, hWin, 2, 5000, NULL ; 設置計時器，ID為2，道具生成觸發器
+                  invoke SetTimer, hWin, 2, 7548, NULL ; 設置計時器，ID為2，道具生成觸發器
                   invoke SetTimer, hWin, TIMER_SCORE, 500, NULL ; 設置計時器，分數加分觸發器
                   invoke initGameplay
                   mov GAMESTATE, 2
@@ -696,7 +734,15 @@ moveZombies PROC
         mov eax, [ebx + zombieObj.y] ; 將殭屍的 y 坐標移動到 eax 寄存器
         mov [zombieY], eax           ; 再將 eax 寄存器的值移動到 zombieY 變數
 
-        mov eax, [ebx + zombieObj.speed]     
+        .if(buffOn == 1)
+          .if buffType == 2
+            mov eax, 0 
+          .else
+            mov eax, [ebx + zombieObj.speed]     
+          .endif
+        .else
+          mov eax, [ebx + zombieObj.speed]     
+        .endif
 
         ; 殭屍 X 軸的移動
         mov edx, zombieX
@@ -759,8 +805,15 @@ checkZombieCollision PROC
                 .if edx > eax;Y small boundary
                     add eax, 50
                     .if edx < eax;Y large boundary
-                        mov beenHit, 1; 發生碰撞
-                        ;invoke MessageBox, hWnd, ADDR infoBuffer, ADDR szDisplayName, MB_OK
+                        .if buffOn == 1
+                            .if buffType == 3
+                                mov beenHit, 0
+                            .else
+                                mov beenHit, 1 ; 發生碰撞
+                            .endif
+                        .else
+                            mov beenHit, 1 ; 發生碰撞
+                        .endif
                     .endif
                 .endif
             .endif
@@ -790,7 +843,9 @@ checkGadgetCollision PROC
             .if edx > eax;Y small boundary
                 add eax, 50
                 .if edx < eax;Y large boundary
-                    mov gadgetAppear, 0; 發生碰撞
+                    mov gadgetAppear, 0; 吃到道具
+                    mov eax, gadgetType
+                    mov buffType, eax
                     mov buffOn, 1          ; 啟用道具效果
                     invoke SetTimer, hWnd, TIMER_BUFF, 3000, NULL ; 設置一次性計時器，ID 為 TIMER_BUFF，3秒後觸發
                 .endif
@@ -802,16 +857,16 @@ checkGadgetCollision PROC
 checkGadgetCollision ENDP
 
 checkBuffEffect PROC
-      cmp buffOn, 1        ; 檢查 buffOn 是否為 1
-      jne BuffNotOn        ; 如果不為 1，跳到 BuffNotOn 標籤
-
-      mov playerSpeed, 20  ; 如果 buffOn 為 1，設置 playerSpeed 為 20
-      jmp BuffEnd
-
-    BuffNotOn:
-      mov playerSpeed, 10
-    
-    BuffEnd:
+      .if (buffOn == 1)
+        .if(buffType == 1)
+          mov playerSpeed, 20
+        .elseif(buffType == 4)
+          mov scoreIncrease, 99
+        .endif
+      .elseif
+          mov playerSpeed, 10
+          mov scoreIncrease, 7
+      .endif
       ret
 checkBuffEffect ENDP
 
