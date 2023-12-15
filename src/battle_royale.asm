@@ -90,13 +90,14 @@ include battle_royale.inc ;函式庫
 
     TIMER_BUFF equ 105
     TIMER_SCORE equ 106
+    TIMER_SEED  equ 107
 
 ;帶有賦值的變數聲明
 .data
     windowClassName     db 'Window',0
     szDisplayName         db 'Battle Royale',0
     paintstruct   PAINTSTRUCT <>
-    zombieInfoBuffer        db 256 dup(0)
+    infoBuffer        db 256 dup(0)
     scoreBuffer             db 256 dup(0)
 
     GAMESTATE        dd  1
@@ -128,6 +129,9 @@ include battle_royale.inc ;函式庫
     zombies zombieObj MAX_ZOMBIES dup({0, 0, 0})
 
     score  dd  0
+
+    seedA  dd  109403021
+    seedB  dd  109403019
 
 ;尚未賦值的變數聲明
 .data?
@@ -169,8 +173,8 @@ start:
 
     initGameplay proc
         ; 初始化玩家
-        mov playerX, 250
-        mov playerY, 250
+        mov playerX, 100
+        mov playerY, 100
         mov playerSpeed, 10
 
         ; 初始化殭屍
@@ -418,7 +422,7 @@ formatZombiesInfo PROC
 
     mov ecx, 0                   ; 初始化計數器
     lea ebx, zombies             ; 獲取殭屍陣列的地址
-    lea edi, zombieInfoBuffer    ; 獲取資訊緩衝區的地址
+    lea edi, infoBuffer    ; 獲取資訊緩衝區的地址
     mov bufferPos, edi           ; 記住緩衝區的起始位置
 
     FormatLoop:
@@ -439,7 +443,7 @@ formatZombiesInfo PROC
         jmp Skip
 
         ToWrite:
-        invoke wsprintf, addr zombieInfoBuffer, chr$("X:%d,Y:%d,A:%d"), zombieX, zombieY, isActive
+        invoke wsprintf, addr infoBuffer, chr$("X:%d,Y:%d,A:%d"), zombieX, zombieY, isActive
         mov formattedLength, eax   ; 獲取格式化字串的長度
 
         Skip:
@@ -478,6 +482,19 @@ activateZombie PROC;遍歷十隻殭屍，將一隻未激活的殭屍激活，如
     ret
 activateZombie ENDP
 
+randomNumberGenerator proc lowerLimit :DWORD, upperLimit :DWORD, seed : DWORD
+    ; 計算範圍大小
+    mov ebx, upperLimit
+    sub ebx, lowerLimit
+    add ebx, 1        ; 範圍大小 = upperLimit - lowerLimit + 1
+    ; 生成隨機數
+    mov eax, seed    ; 使用種子
+    xor edx, edx
+    div ebx           ; 除以範圍大小
+    mov eax, edx
+    add eax, lowerLimit       ; 添加偏移量
+    ret
+randomNumberGenerator ENDP
 
 
     ; 把 WinMain 程序放在這裡來創建窗口本身
@@ -571,10 +588,18 @@ activateZombie ENDP
 
         .if uMsg == WM_CREATE
             mov     hEventStart, eax
+            invoke SetTimer, hWin, TIMER_SEED, 1, NULL ; seed generator
         .elseif uMsg == WM_TIMER
-            .if wParam == 1 
+            .if wParam == TIMER_SEED
+              add seedA, 17 
+              add seedB, 1
+            .elseif wParam == 1 
                 invoke activateZombie
             .elseif wParam == 2 ;生成新道具
+                invoke randomNumberGenerator, 100, 1692, seedA
+                mov gadgetX, eax
+                invoke randomNumberGenerator, 150, 874, seedA
+                mov gadgetY, eax
                 mov gadgetAppear, 1
             .elseif wParam == TIMER_BUFF ; 檢查是否是道具效果計時器
                 mov buffOn, 0        ; 關閉道具效果
@@ -603,8 +628,9 @@ activateZombie ENDP
                 .endif
             .endif
               .if wParam == VK_I
-                  invoke formatZombiesInfo
-                  invoke MessageBox, hWin, ADDR zombieInfoBuffer, ADDR szDisplayName, MB_OK
+                  invoke randomNumberGenerator, 100, 1692, seedB
+                  invoke wsprintf, ADDR infoBuffer, chr$("Random Number: %d"), eax
+                  invoke MessageBox, hWin, ADDR infoBuffer, ADDR szDisplayName, MB_OK
               .elseif wParam == VK_W
                   mov keyWPressed, 1
               .elseif wParam == VK_S
@@ -723,8 +749,8 @@ checkZombieCollision PROC
                 .if edx > eax;Y small boundary
                     add eax, 50
                     .if edx < eax;Y large boundary
-                        mov beenHit, 1; 發生碰撞
-                        ;invoke MessageBox, hWnd, ADDR zombieInfoBuffer, ADDR szDisplayName, MB_OK
+                        ;mov beenHit, 1; 發生碰撞
+                        ;invoke MessageBox, hWnd, ADDR infoBuffer, ADDR szDisplayName, MB_OK
                     .endif
                 .endif
             .endif
