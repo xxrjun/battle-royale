@@ -95,8 +95,8 @@ ENDM
 WinMain PROTO :DWORD, :DWORD, :DWORD, :DWORD
 
 ; ----------------------------------------------------------------------
-; WinProc 
-; Description: The window procedure for the main window
+; WndProc 
+; Description: A callback function, which you define in your application, that processes messages sent to a window.
 ; Parameters:
 ;   hWin - Handle to the window
 ;   uMsg - Message identifier
@@ -104,9 +104,9 @@ WinMain PROTO :DWORD, :DWORD, :DWORD, :DWORD
 ;   lParam - Additional message information
 ; Reference: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nc-winuser-wndproc
 ; ----------------------------------------------------------------------
-WndProc   PROTO :DWORD,:DWORD,:DWORD,:DWORD 
+WndProc PROTO :DWORD,:DWORD,:DWORD,:DWORD 
 
-TopXY     PROTO :DWORD,:DWORD 
+TopXY PROTO :DWORD,:DWORD 
 PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD  
 ExitProcess PROTO, dwExitCode:DWORD
 PaintBackground PROTO _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
@@ -119,7 +119,7 @@ PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD
     gameBackground EQU 102
     endWithSurvivorBackground EQU 103
     endWithoutSurvivorBackground EQU 104
-    player1 EQU  1001
+    player EQU  1001
     zombie  EQU 1002
     gadgetLighting EQU 1003
     gadgetIce EQU 1004
@@ -139,18 +139,16 @@ PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD
     TIMER_SEED  equ 107
     TIMER_SEED2  equ 108
 
+; ======================================================================
+
 .data
-    ; Window Viewport
-    windowWidth  DWORD 1920    
-    windowHeight DWORD 1100   
+    ; Window Viewport (FHD)
+    windowWidth  DWORD 1280    
+    windowHeight DWORD 786 ; 720 + 64   
     
     menuChoice DWORD ?
     inputKey BYTE ?     ; stores the user's input key
-    hInstance     DD 0  ; handle to the current instance
-    hWnd       DD 0     ; handle to the main window
     CommandLine   DD 0
-
-    paintstruct   PAINTSTRUCT <> 
 
     startingGameMsg BYTE "Starting Battle Royale Game", 0
     szDisplayGameName BYTE "Battle Royale", 0
@@ -230,46 +228,91 @@ PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD
     play_dwFrom       DD ?
     play_dwTo        DD ?   
 
+; ======================================================================
+
+.data?
+    hInstance   HINSTANCE ? ; handle to the current instance
+    arguments  LPSTR ?     ; 應用程式參數
+    threadID    DWORD ? 
+    hEventStart HANDLE ?
+    hWnd HWND ? ; handle to the main window
+
+; ======================================================================
+
 .code
 start:
     invoke GetModuleHandle, NULL 
     mov hInstance, eax  ; provides the instance handle
 
     ; load bitmaps images into memory
-    invoke LoadBitmap, hInstance, background
+    invoke LoadBitmap, hInstance, gameBackground
     test   eax, eax
     jz     LoadBitmapFailed
     mov    gameBackgroundBmp, eax
 
-    invoke LoadBitmap, hInstance, home_page
+    invoke LoadBitmap, hInstance, menuBackground
+    test   eax, eax
+    jz     LoadBitmapFailed
     mov    menuPageBmp, eax
-    invoke LoadBitmap, hInstance, player
-    mov    playerBmp , eax
-    invoke LoadBitmap, hInstance, zombie
-    mov    zombieBmp , eax
-    invoke LoadBitmap, hInstance, gadget_lighting
-    mov    gadgetLightingBmp , eax
-    invoke LoadBitmap, hInstance, gadget_ice
-    mov    gadgetIceBmp , eax
-    invoke LoadBitmap, hInstance, gadget_star
-    mov    gadgetStarBmp , eax
-    invoke LoadBitmap, hInstance, gadget_money
-    mov    gadgetMoneyBmp , eax
-    invoke LoadBitmap, hInstance, player_speedBuff
-    mov    playerSpeedBuffBmp , eax
-    invoke LoadBitmap, hInstance, zombie_iceDebuff
-    mov    zombieIceDebuffBmp , eax
-    invoke LoadBitmap, hInstance, player_starBuff
-    mov    playerStarBuffBmp , eax
-    invoke LoadBitmap, hInstance, player_scoreBuff
-    mov    playerScoreBuffBmp , eax
 
+    invoke LoadBitmap, hInstance, player
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    playerBmp , eax
+
+    invoke LoadBitmap, hInstance, zombie
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    zombieBmp , eax
+
+    invoke LoadBitmap, hInstance, gadgetLighting
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    gadgetLightingBmp , eax
+
+    invoke LoadBitmap, hInstance, gadgetIce
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    gadgetIceBmp , eax
+    
+    invoke LoadBitmap, hInstance, gadgetStar
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    gadgetStarBmp , eax
+    
+    invoke LoadBitmap, hInstance, gadgetMoney
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    gadgetMoneyBmp , eax
+
+    invoke LoadBitmap, hInstance, playerSpeedBuff 
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    playerSpeedBuffBmp , eax
+
+    invoke LoadBitmap, hInstance, zombieIceDebuff
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    zombieIceDebuffBmp , eax
+
+    invoke LoadBitmap, hInstance, playerStarBuff
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    playerStarBuffBmp , eax
+
+    invoke LoadBitmap, hInstance, playerScoreBuff
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    playerScoreBuffBmp , eax
+    
     invoke WinMain, hInstance, NULL, arguments, SW_SHOWDEFAULT
     invoke ExitProcess, eax ; cleanup & return to operating system
 
     LoadBitmapFailed:
         invoke StdOut, ADDR szLoadBitmapFailedMsg
         invoke ExitProcess, 0
+
+    ; ----------------------------------------------------------------------
 
     randomNumberGenerator PROC lowerLimit :DWORD, upperLimit :DWORD, seed : DWORD
         ; 計算範圍大小
@@ -284,6 +327,8 @@ start:
         add eax, lowerLimit       ; 添加偏移量
         ret
     randomNumberGenerator ENDP
+
+    ; ----------------------------------------------------------------------
 
     initGameplay PROC
         ; 初始化玩家
@@ -325,6 +370,8 @@ start:
         ret
     initGameplay ENDP
 
+    ; ----------------------------------------------------------------------
+
     ;繪製圖片的函數
     paintBackground PROC _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
         ; 繪製背景
@@ -339,6 +386,8 @@ start:
         invoke BitBlt, _hMemDC, 0, 0, 1792, 1024, _hMemDC2, 0, 0, SRCCOPY
         ret
     paintBackground ENDP
+
+    ; ----------------------------------------------------------------------
 
     paintScoreBar PROC _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
         LOCAL rect: RECT  ; RECT 結構定義了矩形左上角和右下角的坐標。
@@ -366,6 +415,8 @@ start:
             ret
     paintScoreBar ENDP
 
+    ; ----------------------------------------------------------------------
+
     paintPlayer PROC _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
         .if(buffOn == 1)
             .if(buffType == 1)
@@ -384,6 +435,7 @@ start:
       ret
     paintPlayer ENDP
 
+    ; ----------------------------------------------------------------------
 
     paintZombie PROC _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
         LOCAL zombieX :DWORD
@@ -457,6 +509,8 @@ start:
         ret
     paintZombie ENDP
 
+    ; ----------------------------------------------------------------------
+
     paintGadget PROC _hdc:HDC,_hMemDC:HDC, _hMemDC2:HDC
 
         .if (gadgetAppear == 1)
@@ -474,6 +528,8 @@ start:
 
         ret
     paintGadget  ENDP
+
+    ; ----------------------------------------------------------------------
 
     updateScrenn PROC
         LOCAL hMemDC:HDC
@@ -510,6 +566,8 @@ start:
         ret
     updateScrenn ENDP   
 
+    ; ----------------------------------------------------------------------
+
     updatePlayerPosition PROC
         mov edx, playerSpeed
         .if keyWPressed == 1
@@ -535,6 +593,8 @@ start:
         invoke InvalidateRect, hWnd, NULL, TRUE
     ret
     updatePlayerPosition ENDP
+
+    ; ----------------------------------------------------------------------
 
     formatZombiesInfo PROC
         LOCAL zombieX :DWORD
@@ -583,6 +643,8 @@ start:
         ret
     formatZombiesInfo ENDP
 
+    ; ----------------------------------------------------------------------
+
     activateZombie PROC zombieSpeed :DWORD;遍歷十隻殭屍，將一隻未激活的殭屍激活，如果十隻都被激活則不做事
         mov ecx, 0
         lea ebx, zombies
@@ -607,10 +669,9 @@ start:
         ret
     activateZombie ENDP
 
+    ; ----------------------------------------------------------------------
 
-
-
-    ; 把 WinMain 程序放在這裡來創建窗口本身
+    ; The main entry point for a Windows application
     WinMain PROC hInst     :DWORD,
                 hPrevInst :DWORD,
                 CmdLine   :DWORD,
@@ -650,7 +711,7 @@ start:
         invoke RegisterClassEx, ADDR wc             ;註冊視窗
 
 
-         ;================================
+        ;================================
         ; Calculate window size & position
         ;================================
 
@@ -705,8 +766,10 @@ start:
 
     WinMain ENDP
 
-    ;處理消息的函數
-    WndProc proc hWin   :DWORD,
+    ; ----------------------------------------------------------------------
+
+    ; Processes messages sent to a window
+    WndProc proc hWin :DWORD,
         uMsg   :DWORD,
         wParam :DWORD,
         lParam :DWORD
@@ -840,6 +903,26 @@ start:
         ret
     WndProc ENDP
 
+    ; ----------------------------------------------------------------------
+
+    TopXY PROC wDim:DWORD, sDim:DWORD
+
+        ; ----------------------------------------------------
+        ; This procedure calculates the top X & Y co-ordinates
+        ; for the CreateWindowEx call in the WinMain procedure
+        ; ----------------------------------------------------
+
+        shr sDim, 1      ; divide screen dimension by 2
+        shr wDim, 1      ; divide window dimension by 2
+        mov eax, wDim    ; copy window dimension into eax
+        sub sDim, eax    ; sub half win dimension from half screen dimension
+
+        return sDim
+
+    TopXY ENDP
+
+    ; ----------------------------------------------------------------------
+
     moveZombies PROC
         LOCAL zombieX:DWORD
         LOCAL zombieY:DWORD
@@ -900,6 +983,8 @@ start:
         ret
     moveZombies ENDP
 
+    ; ----------------------------------------------------------------------
+
     checkZombieCollision PROC
         LOCAL zombieX:DWORD
         LOCAL zombieY:DWORD
@@ -953,6 +1038,8 @@ start:
         ret
     checkZombieCollision ENDP
 
+    ; ----------------------------------------------------------------------
+
     checkGadgetCollision PROC
         ; 判斷 X 座標是否重疊
         mov eax, playerX;eax存判斷boundary
@@ -981,6 +1068,8 @@ start:
         ret
     checkGadgetCollision ENDP
 
+    ; ----------------------------------------------------------------------
+
     checkBuffEffect PROC
         .if (buffOn == 1)
             .if(buffType == 1)
@@ -994,6 +1083,8 @@ start:
         .endif
         ret
     checkBuffEffect ENDP
+
+    ; ----------------------------------------------------------------------
 
     ThreadProc PROC USES ecx Param:DWORD
         ; 線程循環
@@ -1018,4 +1109,7 @@ start:
             ; 清理和終止線程前的代碼
             ret
     ThreadProc ENDP
+
+    ; ----------------------------------------------------------------------
+
 end start
