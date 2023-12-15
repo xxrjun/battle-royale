@@ -49,6 +49,8 @@ clean:
 	del /Q /F src\*.obj
 	del /Q /F src\*.res
 	del /Q /F bin\*.exe
+	del /Q /F bin\*.pdb
+	del /Q /F bin\*.ilk
 
 # Phony targets
 .PHONY: all clean
