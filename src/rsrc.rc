@@ -30,14 +30,14 @@ endWithoutSurvivorBackground BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\as
 player1 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\player1.bmp"
 player2 BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\player2.bmp"
 zombie BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\zombie.bmp"
-gadgetLighting BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gadget_lighting.bmp"
-getgetIce BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gadget_ice.bmp"
-gatgetStar BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gadget_star.bmp"
-gatgetMoney BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gadget_money.bmp"
-playerSpeedBuff BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\player_speedBuff.bmp"
-zombieIceBebuff BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\zombie_iceDebuff.bmp"
-playerStarBuff BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\player_starBuff.bmp"
-playerScoreBuff BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\player_scoreBuff.bmp"
+gadgetLighting BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gadgetLighting.bmp"
+getgetIce BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gadgetIce.bmp"
+gatgetStar BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gadgetStar.bmp"
+gatgetMoney BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\gadgetMoney.bmp"
+playerSpeedBuff BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\playerSpeedBuff.bmp"
+zombieIceBebuff BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\zombieIceDebuff.bmp"
+playerStarBuff BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\playerStarBuff.bmp"
+playerScoreBuff BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\\playerScoreBuff.bmp"
 
 // create a menu
 600 MENUEX MOVEABLE IMPURE LOADONCALL DISCARDABLE
