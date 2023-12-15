@@ -44,7 +44,7 @@ Thumbs.db
 *.layout
 *.depend*
 *.depend
-# *.pdb
+*.pdb
 *.user
 *.aps
 *.pch
