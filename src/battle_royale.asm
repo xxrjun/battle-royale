@@ -115,6 +115,7 @@ PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD
 ; ======================================================================
 
 .const
+    ICONE EQU 700
     menuBackground EQU 101
     gameBackground EQU 102
     endWithSurvivorBackground EQU 103
@@ -130,21 +131,27 @@ PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD
     playerStarBuff EQU 1012
     playerScoreBuff EQU 1013
 
-    MAX_ZOMBIES EQU 3
-    CREF_TRANSPARENT  EQU 00FFFFFFh
+    MAX_ZOMBIES EQU 15 ; 殭屍數量上限
+    CREF_TRANSPARENT  EQU 00000000h  ;去背之顏色(此為黑色)
     WM_FINISH EQU WM_USER + 100h
 
     TIMER_BUFF equ 105
     TIMER_SCORE equ 106
     TIMER_SEED  equ 107
     TIMER_SEED2  equ 108
+    TIMER_ZOMBIE  equ 109
+    TIMER_GADGET  equ 110
+
+    ; Playback should start again at the beginning when the end of the content is reached.
+    ; ref: https://learn.microsoft.com/en-us/previous-versions/ms710970(v=vs.85)
+    MCI_PLAY_LOOP EQU MCI_DGV_PLAY_REPEAT
 
 ; ======================================================================
 
 .data
     ; Window Viewport (FHD)
     windowWidth  DWORD 1280    
-    windowHeight DWORD 786 ; 720 + 64   
+    windowHeight DWORD 784 ; 720 + 64   
     
     menuChoice DWORD ?
     inputKey BYTE ?     ; stores the user's input key
@@ -181,17 +188,28 @@ PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD
     zombieIceDebuffBmp  DD 0
     playerStarBuffBmp  DD 0
     playerScoreBuffBmp  DD 0
+    endWithoutSurvivorBackgroundBmp DD 0
+    
+
+    ; bitmaps' witdth & height
+    playerWidth   DD 38
+    playerHeight   DD 78
+    zombieWidth   DD 35
+    zombieHeight   DD 95
+    gadgetWidth   DD 45
+    gadgetHeight   DD 45
+
 
     ; in game variables
     playerX          DD  250     ; 玩家位置
     playerY          DD  250 
     playerSpeed      DD  10
-    beenHit          DD  0
-    gadgetX         DD  884
+    beenHit          DD  0      ;是否觸碰到殭屍
+    gadgetX         DD  884     
     gadgetY         DD  500
-    gadgetType      DD  0 ;   1-閃電,2-冰凍,3-無敵,4-分數加速累積
-    gadgetAppear    DD  0
-    buffOn          DD  0
+    gadgetType      DD  0       ; 1-閃電,2-冰凍,3-無敵,4-分數加速累積
+    gadgetAppear    DD  0       
+    buffOn          DD  0       ;玩家是否在道具效果生效期間
     buffType        DD  0
 
     ; user input
@@ -211,7 +229,8 @@ PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD
      ; music and sound effects
     backgroundMusic DB "../assets/sounds/backgroundmusic.mp3", 0
     buttonInputSound DB "../assets/sounds/button-input-sound-effects.mp3", 0
-    startGameSound DB "../assets/sounds/background-music.mp3", 0
+    startGameSound DB "../assets/sounds/start-game-sound-effects.mp3", 0
+    exitGameSound DB "../assets/sounds/exit-game-sound-effects.mp3", 0
 
     ; - MCI_OPEN_PARMS Structure ( API=mciSendCommand ) -
     open_dwCallback     DD ?
@@ -304,6 +323,11 @@ start:
     test   eax, eax
     jz     LoadBitmapFailed
     mov    playerScoreBuffBmp , eax
+
+    invoke LoadBitmap, hInstance, endWithoutSurvivorBackground
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    endWithoutSurvivorBackgroundBmp , eax
     
     invoke WinMain, hInstance, NULL, arguments, SW_SHOWDEFAULT
     invoke ExitProcess, eax ; cleanup & return to operating system
@@ -314,7 +338,8 @@ start:
 
     ; ----------------------------------------------------------------------
 
-    randomNumberGenerator PROC lowerLimit :DWORD, upperLimit :DWORD, seed : DWORD
+    ;隨機數產生器(生產lowerLimit~upperLimit間隨機整數)
+    generateRandomNum PROC lowerLimit :DWORD, upperLimit :DWORD, seed : DWORD
         ; 計算範圍大小
         mov ebx, upperLimit
         sub ebx, lowerLimit
@@ -326,10 +351,11 @@ start:
         mov eax, edx
         add eax, lowerLimit       ; 添加偏移量
         ret
-    randomNumberGenerator ENDP
+    generateRandomNum ENDP
 
     ; ----------------------------------------------------------------------
 
+    ;初始化所有遊玩(GAMESTATE=2)要用到的變數
     initGameplay PROC
         ; 初始化玩家
         mov playerX, 100
@@ -358,7 +384,7 @@ start:
         ;其他初始化
         mov beenHit, 0
         mov score, 0
-        mov scoreIncrease, 7
+        mov scoreIncrease, 7  ;分數累加速度
         ;初始化buffer
         lea edi, scoreBuffer ; 將 scoreBuffer 的地址加載到 edi 寄存器
         mov ecx, 256        ; 設置循環計數為 256（scoreBuffer 的大小）
@@ -372,7 +398,7 @@ start:
 
     ; ----------------------------------------------------------------------
 
-    ;繪製圖片的函數
+    ;繪製遊戲背景畫面
     paintBackground PROC _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
         ; 繪製背景
         .if(GAMESTATE == 1)
@@ -380,43 +406,51 @@ start:
         .elseif(GAMESTATE == 2)
             invoke SelectObject, _hMemDC2, gameBackgroundBmp
         .elseif(GAMESTATE == 3)
-            invoke SelectObject, _hMemDC2, gameBackgroundBmp
+            invoke SelectObject, _hMemDC2, endWithoutSurvivorBackgroundBmp
         .endif
         
-        invoke BitBlt, _hMemDC, 0, 0, 1792, 1024, _hMemDC2, 0, 0, SRCCOPY
+        invoke BitBlt, _hMemDC, 0, 0, windowWidth, windowHeight, _hMemDC2, 0, 0, SRCCOPY
         ret
     paintBackground ENDP
 
     ; ----------------------------------------------------------------------
 
+    ;繪製分數欄
     paintScoreBar PROC _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
         LOCAL rect: RECT  ; RECT 結構定義了矩形左上角和右下角的坐標。
 
-            ; 格式化分數並寫入 scoreBuffer
-            invoke wsprintf, addr scoreBuffer, chr$("SCORE: %d "), score
-            ; 設置文本顏色
-            invoke SetTextColor, _hMemDC, 00FF8800h
-            ; 設置繪製文本的矩形區域
-            .if(GAMESTATE == 2)
-                mov   rect.left, 846
-                mov   rect.top, 10
-                mov   rect.right, 946
-                mov   rect.bottom, 50  
-            .elseif(GAMESTATE == 3)
-                mov   rect.left, 846
-                mov   rect.top, 492
-                mov   rect.right, 946
-                mov   rect.bottom, 532  
-            .endif
+        ; 格式化分數並寫入 scoreBuffer
+        invoke wsprintf, addr scoreBuffer, chr$("SCORE: %d "), score
+        ; ; 設置文本顏色
+        ; invoke SetTextColor, _hMemDC, 00FF8800h
 
-            ; 繪製文本
-            invoke DrawText, _hMemDC, addr scoreBuffer, -1, addr rect, DT_CENTER or DT_VCENTER or DT_SINGLELINE
+        ; 設置字體和顏色
+        ; ref: https://learn.microsoft.com/zh-tw/windows/win32/api/wingdi/nf-wingdi-createfonta
+        invoke CreateFontA, 30, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, NULL
+        invoke SelectObject, _hMemDC, eax
+        invoke SetTextColor, _hMemDC, 00FFFFFFh ; 白色
 
-            ret
+        ; 設置背景和邊框
+        invoke CreateSolidBrush, 005F5F5Fh; 灰色
+        invoke SelectObject, _hMemDC, eax
+        invoke SetBkMode, _hMemDC, TRANSPARENT
+
+        ; 設置繪製文本的矩形區域
+        mov   rect.left, 540
+        mov   rect.top, 20
+        mov   rect.right, 740
+        mov   rect.bottom, 60  
+
+        invoke RoundRect, _hMemDC, rect.left, rect.top, rect.right, rect.bottom, 15, 15 ; 圓角矩形背景
+        ; 繪製文本
+        invoke DrawText, _hMemDC, addr scoreBuffer, -1, addr rect, DT_CENTER or DT_VCENTER or DT_SINGLELINE
+
+        ret
     paintScoreBar ENDP
 
     ; ----------------------------------------------------------------------
 
+    ;繪製玩家
     paintPlayer PROC _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
         .if(buffOn == 1)
             .if(buffType == 1)
@@ -431,86 +465,74 @@ start:
         .else
             invoke SelectObject, _hMemDC2, playerBmp
         .endif
-          invoke TransparentBlt, _hMemDC, playerX, playerY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+          invoke TransparentBlt, _hMemDC, playerX, playerY, playerWidth, playerHeight, _hMemDC2, 0, 0, playerWidth, playerHeight, CREF_TRANSPARENT
       ret
     paintPlayer ENDP
 
     ; ----------------------------------------------------------------------
 
+    ;繪製所有殭屍
     paintZombie PROC _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
         LOCAL zombieX :DWORD
         LOCAL zombieY :DWORD
 
-        ; mov ecx, 0                  ; 初始化計數器
-        ; lea ebx, zombies            ; 獲取殭屍陣列的地址
-        ; DrawZombiesLoop:
-        ;     cmp [ebx + zombieObj.active], 0
-        ;     je SkipZombie           ; 如果殭屍未激活，跳過繪製
+        mov ecx, 0                  ; 初始化計數器
+        lea ebx, zombies            ; 獲取殭屍陣列的地址
+        DrawZombiesLoop:
+            cmp [ebx + zombieObj.active], 0
+            je SkipZombie           ; 如果殭屍未激活，跳過繪製
 
-        ;     ; 獲取殭屍的位置
-        ;     mov eax, [ebx + zombieObj.x] ; 將殭屍的 x 坐標移動到 eax 寄存器
-        ;     mov zombieX, eax           ; 再將 eax 寄存器的值移動到 zombieX 變數
+            ; 獲取殭屍的位置
+            mov eax, [ebx + zombieObj.x] 
+            mov zombieX, eax             
 
-        ;     mov eax, [ebx + zombieObj.y] ; 將殭屍的 y 坐標移動到 eax 寄存器
-        ;     mov zombieY, eax           ; 再將 eax 寄存器的值移動到 zombieY 變數
+            mov eax, [ebx + zombieObj.y] 
+            mov zombieY, eax            
+            
+            ; 繪製殭屍
+            push ecx
+            .if (buffOn == 1)
+                .if (buffType == 2)
+                    invoke SelectObject, _hMemDC2, zombieIceDebuffBmp
+                .else
+                    invoke SelectObject, _hMemDC2, zombieBmp
+                .endif
+            .else
+                invoke SelectObject, _hMemDC2, zombieBmp
+            .endif
 
-        ;     ; 繪製殭屍
-        ;     invoke SelectObject, _hMemDC2, zombieBmp
-        ;     invoke TransparentBlt, _hMemDC, zombieX, zombieY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+            invoke TransparentBlt, _hMemDC, zombieX, zombieY, zombieWidth, zombieHeight, _hMemDC2, 0, 0, zombieWidth, zombieHeight, CREF_TRANSPARENT
+            pop ecx
 
-        ;     SkipZombie:
-        ;     add ebx, TYPE zombieObj ; 移動到下一個殭屍
-        ;     inc ecx
-        ;     cmp ecx, MAX_ZOMBIES
-        ;     jl DrawZombiesLoop      ; 繼續循環直到處理完所有殭屍
-        lea ebx, zombies    ; 獲取殭屍陣列的地址
-
-        ; 繪製第一個殭屍
-        cmp [ebx + zombieObj.active], 0
-        jne DrawFirstZombie
-        jmp SkipFirstZombie
-        DrawFirstZombie:
-            mov eax, [ebx + zombieObj.x]
-            mov zombieX, eax
-            mov eax, [ebx + zombieObj.y]
-            mov zombieY, eax
-            invoke SelectObject, _hMemDC2, zombieBmp
-            invoke TransparentBlt, _hMemDC, zombieX, zombieY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
-        SkipFirstZombie:
-
-        ; 繪製第二個殭屍
-        add ebx, TYPE zombieObj
-        cmp [ebx + zombieObj.active], 0
-        jne DrawSecondZombie
-        jmp SkipSecondZombie
-        DrawSecondZombie:
-            mov eax, [ebx + zombieObj.x]
-            mov zombieX, eax
-            mov eax, [ebx + zombieObj.y]
-            mov zombieY, eax
-            invoke SelectObject, _hMemDC2, zombieBmp
-            invoke TransparentBlt, _hMemDC, zombieX, zombieY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
-        SkipSecondZombie:
-
-        ; 繪製第三個殭屍
-        add ebx, TYPE zombieObj
-        cmp [ebx + zombieObj.active], 0
-        jne DrawThirdZombie
-        jmp SkipThirdZombie
-        DrawThirdZombie:
-            mov eax, [ebx + zombieObj.x]
-            mov zombieX, eax
-            mov eax, [ebx + zombieObj.y]
-            mov zombieY, eax
-            invoke SelectObject, _hMemDC2, zombieBmp
-            invoke TransparentBlt, _hMemDC, zombieX, zombieY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
-        SkipThirdZombie:        
+        SkipZombie:
+            add ebx, TYPE zombieObj ; 移動到下一個殭屍
+            inc ecx
+            cmp ecx, MAX_ZOMBIES
+            jl DrawZombiesLoop      ; 繼續循環直到處理完所有殭屍
 
         ret
     paintZombie ENDP
 
     ; ----------------------------------------------------------------------
+    playSound proc uses ebx lpstrSound:DWORD
+        mov   ebx, lpstrSound
+        mov   open_lpstrDeviceType, 0h
+        mov   open_lpstrElementName, ebx
+        invoke mciSendCommandA, 0, MCI_OPEN, MCI_OPEN_ELEMENT, OFFSET open_dwCallback
+        cmp   eax, 0h
+        je    play_sound
+        jmp   end_play_sound
 
+        play_sound:
+            invoke mciSendCommandA, open_wDeviceID, MCI_PLAY, MCI_NOTIFY, offset play_dwCallback
+            invoke mciSendCommandA, open_wDeviceID, MCI_CLOSE, 0, 0
+        end_play_sound:
+            ret
+    playSound endp
+
+    ; ----------------------------------------------------------------------
+
+    ;繪製道具
     paintGadget PROC _hdc:HDC,_hMemDC:HDC, _hMemDC2:HDC
 
         .if (gadgetAppear == 1)
@@ -523,7 +545,7 @@ start:
             .elseif (gadgetType == 4)
                 invoke SelectObject, _hMemDC2, gadgetMoneyBmp
             .endif
-            invoke TransparentBlt, _hMemDC, gadgetX, gadgetY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+            invoke TransparentBlt, _hMemDC, gadgetX, gadgetY, gadgetWidth, gadgetHeight, _hMemDC2, 0, 0, gadgetWidth, gadgetHeight, CREF_TRANSPARENT
         .endif
 
         ret
@@ -531,6 +553,7 @@ start:
 
     ; ----------------------------------------------------------------------
 
+    ;更新遊戲畫面
     updateScrenn PROC
         LOCAL hMemDC:HDC
         LOCAL hMemDC2:HDC
@@ -543,7 +566,7 @@ start:
         mov hMemDC, eax
         invoke CreateCompatibleDC, hDC ; for double buffering
         mov hMemDC2, eax
-        invoke CreateCompatibleBitmap, hDC, 1792, 1024
+        invoke CreateCompatibleBitmap, hDC, windowWidth, windowHeight
         mov hBitmap, eax
 
         invoke SelectObject, hMemDC, hBitmap
@@ -557,7 +580,7 @@ start:
         .elseif(GAMESTATE == 3)
             invoke paintScoreBar, hDC, hMemDC, hMemDC2
         .endif
-        invoke BitBlt, hDC, 0, 0, 1792, 1024, hMemDC, 0, 0, SRCCOPY
+        invoke BitBlt, hDC, 0, 0, windowWidth, windowHeight, hMemDC, 0, 0, SRCCOPY
 
         invoke DeleteDC, hMemDC     ;DeleteDC 函數刪除指定的設備內容 (DC)。
         invoke DeleteDC, hMemDC2
@@ -568,6 +591,7 @@ start:
 
     ; ----------------------------------------------------------------------
 
+    ;更新玩家位置
     updatePlayerPosition PROC
         mov edx, playerSpeed
         .if keyWPressed == 1
@@ -576,7 +600,11 @@ start:
             .endif
         .endif 
         .if keySPressed == 1
-            .if playerY < 934
+          mov eax, windowHeight
+          mov ebx, playerHeight
+          sub eax, ebx
+          sub eax, 100
+            .if playerY < eax
                 add playerY, edx
             .endif
         .endif
@@ -586,7 +614,11 @@ start:
             .endif
         .endif
         .if keyDPressed == 1
-            .if playerX < 1712
+            mov eax, windowWidth
+            mov ebx, playerHeight
+            sub eax, ebx
+            sub eax, 5
+            .if playerX < eax
                 add playerX, edx
             .endif
         .endif
@@ -596,56 +628,8 @@ start:
 
     ; ----------------------------------------------------------------------
 
-    formatZombiesInfo PROC
-        LOCAL zombieX :DWORD
-        LOCAL zombieY :DWORD
-        LOCAL isActive:DWORD
-        LOCAL bufferPos:DWORD
-        LOCAL formattedLength:DWORD
-
-        mov ecx, 0                   ; 初始化計數器
-        lea ebx, zombies             ; 獲取殭屍陣列的地址
-        lea edi, infoBuffer    ; 獲取資訊緩衝區的地址
-        mov bufferPos, edi           ; 記住緩衝區的起始位置
-
-        FormatLoop:
-            cmp ecx, MAX_ZOMBIES
-            jge EndFormat            ; 如果處理完所有殭屍，結束循環
-
-            ; 從殭屍陣列中獲取資訊
-            mov eax, [ebx + zombieObj.x]
-            mov zombieX, eax
-            mov eax, [ebx + zombieObj.y]
-            mov zombieY, eax
-            mov eax, [ebx + zombieObj.active]
-            mov isActive, eax
-
-            ; 格式化到緩衝區中
-            cmp ecx, 2
-            je  ToWrite
-            jmp Skip
-
-            ToWrite:
-            invoke wsprintf, addr infoBuffer, chr$("X:%d,Y:%d,A:%d"), zombieX, zombieY, isActive
-            mov formattedLength, eax   ; 獲取格式化字串的長度
-
-            Skip:
-            ; 更新緩衝區位置
-            add edi, 30   ; 根據格式化字串長度更新緩衝區指針
-            add ebx, SIZEOF zombieObj    ; 移動到下一個殭屍
-            inc ecx
-            jmp FormatLoop
-
-        EndFormat:
-            ; 在緩衝區的最後添加結束字元
-            mov byte ptr [edi], 0
-
-        ret
-    formatZombiesInfo ENDP
-
-    ; ----------------------------------------------------------------------
-
-    activateZombie PROC zombieSpeed :DWORD;遍歷十隻殭屍，將一隻未激活的殭屍激活，如果十隻都被激活則不做事
+    ;激活新殭屍
+    activateZombie PROC zombieSpeed :DWORD;遍歷十隻殭屍，將一隻未激活的殭屍激活，如果全部都被激活則不做事
         mov ecx, 0
         lea ebx, zombies
         ActivateZombieLoop:
@@ -660,7 +644,7 @@ start:
 
         ToActivateZombie:
             ; 激活殭屍並設定初始值位置
-            mov [ebx + zombieObj.x], 550
+            mov [ebx + zombieObj.x], 550      ;[此處調整殭屍生成位置]
             mov [ebx + zombieObj.y], 550
             mov [ebx + zombieObj.active], 1
             mov eax, zombieSpeed
@@ -702,7 +686,7 @@ start:
         mov wc.lpszMenuName,   NULL                 ;視窗選單
         mov wc.lpszClassName,  offset szClassName   ;視窗結構體的名稱 ;給視窗結構體命名，CreateWindow函式將根據視窗結構體名稱來建立視窗
         ; RC 文件中的圖標 ID
-        invoke LoadIcon,hInst, IDI_APPLICATION      ;視窗圖式
+        invoke LoadIcon,hInst, 700      ;視窗圖式
         mov wc.hIcon,          eax
         invoke LoadCursor,NULL,IDC_ARROW            ;視窗游標
         mov wc.hCursor,        eax
@@ -809,27 +793,39 @@ start:
             invoke SetTimer, hWin, TIMER_SEED2, 500, NULL ; seed generator
 
             ; play background music
-            mov   open_lpstrDeviceType, 0h                       ; 0h = default device to play the file
-            mov   open_lpstrElementName, OFFSET backgroundMusic  ; file to play
-            invoke mciSendCommandA, 0, MCI_OPEN, MCI_OPEN_ELEMENT, OFFSET open_dwCallback  ; open the device
-            cmp   eax,0h      ; if the device was opened successfully
-            je    next		  ; jump to next
-            next:	
-                invoke mciSendCommandA,open_wDeviceID,MCI_PLAY,MCI_NOTIFY,offset play_dwCallback ; start playing the file
+            mov   open_lpstrDeviceType, 0h                       ; 0h = 預設播放裝置
+            mov   open_lpstrElementName, OFFSET backgroundMusic  ; 要播放的檔案
+            invoke mciSendCommandA, 0, MCI_OPEN, MCI_OPEN_ELEMENT, OFFSET open_dwCallback  ; 打開播放裝置
+            cmp   eax, 0h
+            jne   open_error                                    ; 如果打開失敗則跳到錯誤處理
+            mov   eax, open_wDeviceID
+            invoke mciSendCommandA, eax, MCI_PLAY, MCI_NOTIFY, offset play_dwCallback ; 開始循環播放檔案
+
+            open_error:
         .elseif uMsg == WM_TIMER
             .if wParam == TIMER_SEED
               add seedA, 17
             .elseif wParam == TIMER_SEED2
               add seedB, 1
-            .elseif wParam == 1 
-                invoke randomNumberGenerator, 3, 9, seedB
+            .elseif wParam == TIMER_ZOMBIE 
+                invoke generateRandomNum, 3, 6, seedB ;[此處可調整殭屍速度區間]
                 invoke activateZombie,eax
-            .elseif wParam == 2 ;生成新道具
-                invoke randomNumberGenerator, 100, 1692, seedA
+            .elseif wParam == TIMER_GADGET ;生成新道具
+                mov ebx, windowWidth
+                mov eax, gadgetWidth
+                add eax, 100
+                sub ebx, eax
+                invoke generateRandomNum, eax, ebx, seedA
                 mov gadgetX, eax
-                invoke randomNumberGenerator, 150, 874, seedA
+
+                mov ebx, windowHeight
+                mov eax, gadgetHeight
+                add eax, 100
+                sub ebx, eax
+                invoke generateRandomNum, eax, ebx, seedA
                 mov gadgetY, eax
-                invoke randomNumberGenerator, 1, 4, seedB
+
+                invoke generateRandomNum, 1, 4, seedB
                 mov gadgetType, eax
                 mov gadgetAppear, 1
             .elseif wParam == TIMER_BUFF ; 檢查是否是道具效果計時器
@@ -844,35 +840,64 @@ start:
         .elseif uMsg == WM_ERASEBKGND ;避免畫面更新閃爍
             mov eax, 1
         .elseif uMsg == WM_KEYDOWN
-            .if wParam == VK_RETURN ; Enter 鍵
+            .if wParam == VK_RETURN && GAMESTATE != 2 ; Enter 鍵
+                ; play start game sound
+                mov   open_lpstrDeviceType, 0h                      ; 0h = default device to play the file
+                mov   open_lpstrElementName, OFFSET startGameSound  ; file to play
+                invoke mciSendCommandA, 0, MCI_OPEN, MCI_OPEN_ELEMENT, OFFSET open_dwCallback  ; open the device
+                cmp   eax,0h      ; if the device was opened successfully
+                je    play_start_game_sound		  ; jump to next
+                play_start_game_sound:	
+                    invoke mciSendCommandA,open_wDeviceID,MCI_PLAY,MCI_NOTIFY,offset play_dwCallback ; start playing the file
+                    ; close  the device after 0.2 seconds
+                    mov eax, 400
+                    invoke Sleep, eax
+                    invoke mciSendCommandA, open_wDeviceID, MCI_CLOSE, 0, 0 
+
                 .if (GAMESTATE == 1)
                   mov eax, offset ThreadProc
                   invoke CreateThread, NULL, NULL, eax, NULL, NORMAL_PRIORITY_CLASS, ADDR threadID 
-                  invoke SetTimer, hWin, 1, 10000, NULL ; 設置計時器，ID為1，殭屍生成觸發器
-                  invoke SetTimer, hWin, 2, 7548, NULL ; 設置計時器，ID為2，道具生成觸發器
-                  invoke SetTimer, hWin, TIMER_SCORE, 500, NULL ; 設置計時器，分數加分觸發器
+                  invoke SetTimer, hWin, TIMER_ZOMBIE, 10000, NULL ; 設置計時器，殭屍生成觸發器(10秒一次)
+                  invoke SetTimer, hWin, TIMER_GADGET, 7548, NULL ; 設置計時器，道具生成觸發器(7.548秒一次)
+                  invoke SetTimer, hWin, TIMER_SCORE, 500, NULL ; 設置計時器，分數加分觸發器(0.5秒一次)
                   invoke initGameplay
                   mov GAMESTATE, 2
-                  invoke randomNumberGenerator, 3, 9, seedB
+                  invoke generateRandomNum, 3, 6, seedB ;[此處可調整第一隻殭屍速度區間]
                   invoke activateZombie,eax
                 .elseif (GAMESTATE == 3)
                     mov GAMESTATE, 1
                     invoke InvalidateRect, hWnd, NULL, TRUE
                 .endif
             .endif
-              .if wParam == VK_I
-                  invoke randomNumberGenerator, 5, 10, seedB
-                  invoke wsprintf, ADDR infoBuffer, chr$("Random Number: %d"), eax
-                  invoke MessageBox, hWin, ADDR infoBuffer, ADDR szDisplayName, MB_OK
-              .elseif wParam == VK_W
-                  mov keyWPressed, 1
-              .elseif wParam == VK_S
-                  mov keySPressed, 1
-              .elseif wParam == VK_A
-                  mov keyAPressed, 1
-              .elseif wParam == VK_D
-                  mov keyDPressed, 1
-              .endif
+
+            ; 控制鍵
+            .if wParam == VK_I 
+                invoke generateRandomNum, 5, 10, seedB      ; just for testing
+                invoke wsprintf, ADDR infoBuffer, chr$("Random Number: %d"), eax
+                invoke MessageBox, hWin, ADDR infoBuffer, ADDR szDisplayName, MB_OK
+            .elseif wParam == VK_W
+                mov keyWPressed, 1
+            .elseif wParam == VK_S
+                mov keySPressed, 1
+            .elseif wParam == VK_A
+                mov keyAPressed, 1
+        
+            .elseif wParam == VK_D
+                mov keyDPressed, 1
+            .endif
+            ; 離開鍵
+            .if wParam == VK_ESCAPE && (GAMESTATE == 3 || GAMESTATE == 1)
+                mov   open_lpstrDeviceType, 0h                      ; 0h = default device to play the file
+                mov   open_lpstrElementName, OFFSET exitGameSound  ; file to play
+                invoke mciSendCommandA, 0, MCI_OPEN, MCI_OPEN_ELEMENT, OFFSET open_dwCallback  ; open the device
+                invoke mciSendCommandA,open_wDeviceID,MCI_PLAY,MCI_NOTIFY,offset play_dwCallback ; start playing the file
+                
+                ; exit game after 0.2 seconds
+                mov eax, 200
+                invoke Sleep, eax
+                invoke SendMessage,hWin,WM_SYSCOMMAND,SC_CLOSE, NULL
+
+            .endif
         .elseif uMsg == WM_KEYUP
               .if wParam == VK_W
                   mov keyWPressed, 0
@@ -883,14 +908,20 @@ start:
               .elseif wParam == VK_D
                   mov keyDPressed, 0
               .endif        
+        .elseif uMsg == MM_MCINOTIFY
+            ; cmp   wParam, MCI_NOTIFY_SUCCESSFUL
+            ; jne   notify_error
+            ; invoke mciSendCommandA, lParam, MCI_PLAY, MCI_NOTIFY, offset play_dwCallback
+            ; notify_error:
+            ;     ; 
         .elseif uMsg == WM_FINISH
-            invoke InvalidateRect, hWnd, NULL, TRUE ;;addr rect, TRUE
+            invoke InvalidateRect, hWnd, NULL, TRUE ;強制刷新畫面
             .if(GAMESTATE == 2)
                 .if beenHit == 1
                     mov GAMESTATE, 3
                     
-                    invoke KillTimer, hWin, 1
-                    invoke KillTimer, hWin, 2
+                    invoke KillTimer, hWin, TIMER_ZOMBIE
+                    invoke KillTimer, hWin, TIMER_GADGET
                     invoke KillTimer, hWin, TIMER_SCORE
                     invoke KillTimer, hWin, TIMER_BUFF
                 .endif
@@ -923,7 +954,8 @@ start:
 
     ; ----------------------------------------------------------------------
 
-    moveZombies PROC
+    ;更新所有殭屍位置
+    updateZombiePositions PROC
         LOCAL zombieX:DWORD
         LOCAL zombieY:DWORD
         LOCAL zombieSpeed:DWORD
@@ -981,10 +1013,11 @@ start:
             jl MoveZombiesLoop      ; 繼續循環直到處理完所有殭屍
 
         ret
-    moveZombies ENDP
+    updateZombiePositions ENDP
 
     ; ----------------------------------------------------------------------
 
+    ;檢查殭屍與玩家是否發生碰撞
     checkZombieCollision PROC
         LOCAL zombieX:DWORD
         LOCAL zombieY:DWORD
@@ -1004,16 +1037,18 @@ start:
             ; 判斷 X 座標是否重疊
             mov eax, playerX;eax存判斷boundary
             mov edx, zombieX
-            add edx, 25     ;edx存判斷子(殭屍座標+殭屍size)
+            add edx, zombieWidth     ;edx存判斷子(殭屍座標+殭屍size)
             .if edx > eax;X small boundary
-                add eax, 50
+                add eax, playerWidth
+                add eax, zombieWidth
                 .if edx < eax;X large boundary
                     ; 判斷 Y 座標是否重疊
                     mov eax, playerY
                     mov edx, zombieY
-                    add edx, 25
+                    add edx, zombieHeight
                     .if edx > eax;Y small boundary
-                        add eax, 50
+                        add eax, playerHeight
+                        add eax, zombieHeight
                         .if edx < eax;Y large boundary
                             .if buffOn == 1
                                 .if buffType == 3
@@ -1040,20 +1075,23 @@ start:
 
     ; ----------------------------------------------------------------------
 
+    ;檢查道具與玩家是否發生碰撞
     checkGadgetCollision PROC
         ; 判斷 X 座標是否重疊
         mov eax, playerX;eax存判斷boundary
         mov edx, gadgetX
-        add edx, 25     ;edx存判斷子(道具座標+道具size)
+        add edx, gadgetWidth     ;edx存判斷子(道具座標+道具size)
         .if edx > eax;X small boundary
-            add eax, 50
+            add eax, playerWidth
+            add eax, gadgetWidth
             .if edx < eax;X large boundary
                 ; 判斷 Y 座標是否重疊
                 mov eax, playerY
                 mov edx, gadgetY
-                add edx, 25
+                add edx, gadgetHeight
                 .if edx > eax;Y small boundary
-                    add eax, 50
+                    add eax, playerHeight
+                    add eax, gadgetHeight
                     .if edx < eax;Y large boundary
                         mov gadgetAppear, 0; 吃到道具
                         mov eax, gadgetType
@@ -1070,7 +1108,8 @@ start:
 
     ; ----------------------------------------------------------------------
 
-    checkBuffEffect PROC
+    ;道具1(玩家加速)、道具4(分數累加加速)實作
+    checkBuffEffect PROC ;[此處可調整道具1、4加速程度]
         .if (buffOn == 1)
             .if(buffType == 1)
             mov playerSpeed, 20
@@ -1086,13 +1125,14 @@ start:
 
     ; ----------------------------------------------------------------------
 
+    ;遊玩(GAMESTATE=2)每幀循環
     ThreadProc PROC USES ecx Param:DWORD
         ; 線程循環
         ThreadLoop:
             invoke Sleep, 100  ; 等待 100 毫秒
 
             invoke updatePlayerPosition
-            invoke moveZombies
+            invoke updateZombiePositions
             invoke checkZombieCollision
             invoke checkGadgetCollision
             invoke checkBuffEffect
