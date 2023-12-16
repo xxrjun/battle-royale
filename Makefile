@@ -14,43 +14,45 @@ RCFLAGS = /fo
 # Linker flags
 LINKFLAGS = /SUBSYSTEM:CONSOLE /DEBUG
 
-# Source directories
+# Source and binary directories
 SRCDIR = src
+BINDIR = bin
 
 # Source files
 SOURCES = $(SRCDIR)/battle_royale.asm
 RESOURCES = $(SRCDIR)/rsrc.rc
 
-# Object and Resource files
-OBJECTS = $(SOURCES:.asm=.obj)
-RESOBJ = $(RESOURCES:.rc=.res)
+# Object and Resource files in bin directory
+OBJECTS = $(patsubst $(SRCDIR)/%.asm,$(BINDIR)/%.obj,$(SOURCES))
+RESOBJ = $(patsubst $(SRCDIR)/%.rc,$(BINDIR)/%.res,$(RESOURCES))
 
 # Executable output
-EXECUTABLE = .\bin\battle_royale.exe
+EXECUTABLE = $(BINDIR)/battle_royale.exe
 
 # Default target
 all: $(EXECUTABLE)
 
 # Rule to compile assembly files
-$(SRCDIR)/%.obj: $(SRCDIR)/%.asm
+$(BINDIR)/%.obj: $(SRCDIR)/%.asm
+	@if not exist "$(BINDIR)" mkdir "$(BINDIR)"
 	$(ASM) $(ASMFLAGS) /Fo$@ $<
 
 # Rule to compile resource files
-$(SRCDIR)/%.res: $(SRCDIR)/%.rc
+$(BINDIR)/%.res: $(SRCDIR)/%.rc
+	@if not exist "$(BINDIR)" mkdir "$(BINDIR)"
 	$(RC) $(RCFLAGS) $@ $<
 
 # Rule to create the executable
 $(EXECUTABLE): $(OBJECTS) $(RESOBJ)
-	@if not exist ".\bin" mkdir ".\bin"
 	$(LINKER) $(LINKFLAGS) $(OBJECTS) $(RESOBJ) /OUT:$(EXECUTABLE)
 
 # Clean target include object files, resource files, and executable
 clean:
-	del /Q /F src\*.obj
-	del /Q /F src\*.res
-	del /Q /F bin\*.exe
-	del /Q /F bin\*.pdb
-	del /Q /F bin\*.ilk
+	del /Q /F $(BINDIR)\*.obj
+	del /Q /F $(BINDIR)\*.res
+	del /Q /F $(BINDIR)\*.exe
+	del /Q /F $(BINDIR)\*.pdb
+	del /Q /F $(BINDIR)\*.ilk
 
 # Phony targets
 .PHONY: all clean
