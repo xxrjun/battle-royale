@@ -339,7 +339,7 @@ start:
     ; ----------------------------------------------------------------------
 
     ;隨機數產生器(生產lowerLimit~upperLimit間隨機整數)
-    randomNumberGenerator PROC lowerLimit :DWORD, upperLimit :DWORD, seed : DWORD
+    generateRandomNum PROC lowerLimit :DWORD, upperLimit :DWORD, seed : DWORD
         ; 計算範圍大小
         mov ebx, upperLimit
         sub ebx, lowerLimit
@@ -351,7 +351,7 @@ start:
         mov eax, edx
         add eax, lowerLimit       ; 添加偏移量
         ret
-    randomNumberGenerator ENDP
+    generateRandomNum ENDP
 
     ; ----------------------------------------------------------------------
 
@@ -808,24 +808,24 @@ start:
             .elseif wParam == TIMER_SEED2
               add seedB, 1
             .elseif wParam == TIMER_ZOMBIE 
-                invoke randomNumberGenerator, 3, 6, seedB ;[此處可調整殭屍速度區間]
+                invoke generateRandomNum, 3, 6, seedB ;[此處可調整殭屍速度區間]
                 invoke activateZombie,eax
             .elseif wParam == TIMER_GADGET ;生成新道具
                 mov ebx, windowWidth
                 mov eax, gadgetWidth
                 add eax, 100
                 sub ebx, eax
-                invoke randomNumberGenerator, eax, ebx, seedA
+                invoke generateRandomNum, eax, ebx, seedA
                 mov gadgetX, eax
 
                 mov ebx, windowHeight
                 mov eax, gadgetHeight
                 add eax, 100
                 sub ebx, eax
-                invoke randomNumberGenerator, eax, ebx, seedA
+                invoke generateRandomNum, eax, ebx, seedA
                 mov gadgetY, eax
 
-                invoke randomNumberGenerator, 1, 4, seedB
+                invoke generateRandomNum, 1, 4, seedB
                 mov gadgetType, eax
                 mov gadgetAppear, 1
             .elseif wParam == TIMER_BUFF ; 檢查是否是道具效果計時器
@@ -862,7 +862,7 @@ start:
                   invoke SetTimer, hWin, TIMER_SCORE, 500, NULL ; 設置計時器，分數加分觸發器(0.5秒一次)
                   invoke initGameplay
                   mov GAMESTATE, 2
-                  invoke randomNumberGenerator, 3, 6, seedB ;[此處可調整第一隻殭屍速度區間]
+                  invoke generateRandomNum, 3, 6, seedB ;[此處可調整第一隻殭屍速度區間]
                   invoke activateZombie,eax
                 .elseif (GAMESTATE == 3)
                     mov GAMESTATE, 1
@@ -872,7 +872,7 @@ start:
 
             ; 控制鍵
             .if wParam == VK_I 
-                invoke randomNumberGenerator, 5, 10, seedB      ; just for testing
+                invoke generateRandomNum, 5, 10, seedB      ; just for testing
                 invoke wsprintf, ADDR infoBuffer, chr$("Random Number: %d"), eax
                 invoke MessageBox, hWin, ADDR infoBuffer, ADDR szDisplayName, MB_OK
             .elseif wParam == VK_W
