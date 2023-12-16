@@ -184,6 +184,15 @@ PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD
     playerStarBuffBmp  DD 0
     playerScoreBuffBmp  DD 0
 
+    ; bitmaps' witdth & height
+    playerWidth   DD 38
+    playerHeight   DD 78
+    zombieWidth   DD 35
+    zombieHeight   DD 95
+    gadgetWidth   DD 25
+    gadgetHeight   DD 25
+
+
     ; in game variables
     playerX          DD  250     ; 玩家位置
     playerY          DD  250 
@@ -437,7 +446,7 @@ start:
         .else
             invoke SelectObject, _hMemDC2, playerBmp
         .endif
-          invoke TransparentBlt, _hMemDC, playerX, playerY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+          invoke TransparentBlt, _hMemDC, playerX, playerY, playerWidth, playerHeight, _hMemDC2, 0, 0, playerWidth, playerHeight, CREF_TRANSPARENT
       ret
     paintPlayer ENDP
 
@@ -464,7 +473,7 @@ start:
             ; 繪製殭屍
             push ecx
             invoke SelectObject, _hMemDC2, zombieBmp
-            invoke TransparentBlt, _hMemDC, zombieX, zombieY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+            invoke TransparentBlt, _hMemDC, zombieX, zombieY, zombieWidth, zombieHeight, _hMemDC2, 0, 0, zombieWidth, zombieHeight, CREF_TRANSPARENT
             pop ecx
 
         SkipZombie:
@@ -491,7 +500,7 @@ start:
             .elseif (gadgetType == 4)
                 invoke SelectObject, _hMemDC2, gadgetMoneyBmp
             .endif
-            invoke TransparentBlt, _hMemDC, gadgetX, gadgetY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
+            invoke TransparentBlt, _hMemDC, gadgetX, gadgetY, gadgetWidth, gadgetHeight, _hMemDC2, 0, 0, gadgetWidth, gadgetHeight, CREF_TRANSPARENT
         .endif
 
         ret
@@ -547,7 +556,9 @@ start:
         .endif 
         .if keySPressed == 1
           mov eax, windowHeight
-          sub eax, 125
+          mov ebx, playerHeight
+          sub eax, ebx
+          sub eax, 100
             .if playerY < eax
                 add playerY, edx
             .endif
@@ -559,7 +570,9 @@ start:
         .endif
         .if keyDPressed == 1
             mov eax, windowWidth
-            sub eax, 75
+            mov ebx, playerHeight
+            sub eax, ebx
+            sub eax, 5
             .if playerX < eax
                 add playerX, edx
             .endif
@@ -752,13 +765,19 @@ start:
                 invoke activateZombie,eax
             .elseif wParam == TIMER_GADGET ;生成新道具
                 mov ebx, windowWidth
-                sub ebx, 125
-                invoke randomNumberGenerator, 125, ebx, seedA
+                mov eax, gadgetWidth
+                add eax, 100
+                sub ebx, eax
+                invoke randomNumberGenerator, eax, ebx, seedA
                 mov gadgetX, eax
+
                 mov ebx, windowHeight
-                sub ebx, 125
-                invoke randomNumberGenerator, 125, ebx, seedA
+                mov eax, gadgetHeight
+                add eax, 100
+                sub ebx, eax
+                invoke randomNumberGenerator, eax, ebx, seedA
                 mov gadgetY, eax
+
                 invoke randomNumberGenerator, 1, 4, seedB
                 mov gadgetType, eax
                 mov gadgetAppear, 1
@@ -936,25 +955,27 @@ start:
             ; 判斷 X 座標是否重疊
             mov eax, playerX;eax存判斷boundary
             mov edx, zombieX
-            add edx, 25     ;edx存判斷子(殭屍座標+殭屍size)
+            add edx, zombieWidth     ;edx存判斷子(殭屍座標+殭屍size)
             .if edx > eax;X small boundary
-                add eax, 50
+                add eax, playerWidth
+                add eax, zombieWidth
                 .if edx < eax;X large boundary
                     ; 判斷 Y 座標是否重疊
                     mov eax, playerY
                     mov edx, zombieY
-                    add edx, 25
+                    add edx, zombieHeight
                     .if edx > eax;Y small boundary
-                        add eax, 50
+                        add eax, playerHeight
+                        add eax, zombieHeight
                         .if edx < eax;Y large boundary
                             .if buffOn == 1
                                 .if buffType == 3
                                     mov beenHit, 0
                                 .else
-                                    mov beenHit, 1 ; 發生碰撞
+                                    mov beenHit, 0 ; 發生碰撞
                                 .endif
                             .else
-                                mov beenHit, 1 ; 發生碰撞
+                                mov beenHit, 0 ; 發生碰撞
                             .endif
                         .endif
                     .endif
@@ -977,16 +998,18 @@ start:
         ; 判斷 X 座標是否重疊
         mov eax, playerX;eax存判斷boundary
         mov edx, gadgetX
-        add edx, 25     ;edx存判斷子(道具座標+道具size)
+        add edx, gadgetWidth     ;edx存判斷子(道具座標+道具size)
         .if edx > eax;X small boundary
-            add eax, 50
+            add eax, playerWidth
+            add eax, gadgetWidth
             .if edx < eax;X large boundary
                 ; 判斷 Y 座標是否重疊
                 mov eax, playerY
                 mov edx, gadgetY
-                add edx, 25
+                add edx, gadgetHeight
                 .if edx > eax;Y small boundary
-                    add eax, 50
+                    add eax, playerHeight
+                    add eax, gadgetHeight
                     .if edx < eax;Y large boundary
                         mov gadgetAppear, 0; 吃到道具
                         mov eax, gadgetType
