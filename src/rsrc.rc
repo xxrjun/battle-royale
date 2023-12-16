@@ -1,6 +1,6 @@
 // rsrc.rc
 
-#define ICONE 500
+#define ICONE 700
 #define menuBackground  101
 #define gameBackground  102
 #define endWithSurvivorBackground  103

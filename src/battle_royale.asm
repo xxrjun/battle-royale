@@ -115,6 +115,7 @@ PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD
 ; ======================================================================
 
 .const
+    ICONE EQU 700
     menuBackground EQU 101
     gameBackground EQU 102
     endWithSurvivorBackground EQU 103
@@ -685,7 +686,7 @@ start:
         mov wc.lpszMenuName,   NULL                 ;視窗選單
         mov wc.lpszClassName,  offset szClassName   ;視窗結構體的名稱 ;給視窗結構體命名，CreateWindow函式將根據視窗結構體名稱來建立視窗
         ; RC 文件中的圖標 ID
-        invoke LoadIcon,hInst, IDI_APPLICATION      ;視窗圖式
+        invoke LoadIcon,hInst, 700      ;視窗圖式
         mov wc.hIcon,          eax
         invoke LoadCursor,NULL,IDC_ARROW            ;視窗游標
         mov wc.hCursor,        eax
