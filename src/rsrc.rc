@@ -43,7 +43,7 @@ playerScoreBuff BITMAP MOVEABLE PURE LOADONCALL DISCARDABLE "..\\assets\\images\
 BEGIN
     POPUP "&File", , , 0
     BEGIN
-        MENUITEM "&Exit", 1000
+        MENUITEM "&Exit (esc)", 1000
     END
     POPUP "&Help", , , 0
     BEGIN

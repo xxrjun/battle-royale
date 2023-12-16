@@ -130,7 +130,7 @@ PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD
     playerStarBuff EQU 1012
     playerScoreBuff EQU 1013
 
-    MAX_ZOMBIES EQU 15
+    MAX_ZOMBIES EQU 15 ; 殭屍數量上限
     CREF_TRANSPARENT  EQU 00000000h  ;去背之顏色(此為黑色)
     WM_FINISH EQU WM_USER + 100h
 
@@ -141,12 +141,16 @@ PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD
     TIMER_ZOMBIE  equ 109
     TIMER_GADGET  equ 110
 
+    ; Playback should start again at the beginning when the end of the content is reached.
+    ; ref: https://learn.microsoft.com/en-us/previous-versions/ms710970(v=vs.85)
+    MCI_PLAY_LOOP EQU MCI_DGV_PLAY_REPEAT
+
 ; ======================================================================
 
 .data
     ; Window Viewport (FHD)
     windowWidth  DWORD 1280    
-    windowHeight DWORD 786 ; 720 + 64   
+    windowHeight DWORD 784 ; 720 + 64   
     
     menuChoice DWORD ?
     inputKey BYTE ?     ; stores the user's input key
@@ -183,14 +187,16 @@ PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD
     zombieIceDebuffBmp  DD 0
     playerStarBuffBmp  DD 0
     playerScoreBuffBmp  DD 0
+    endWithoutSurvivorBackgroundBmp DD 0
+    
 
     ; bitmaps' witdth & height
     playerWidth   DD 38
     playerHeight   DD 78
     zombieWidth   DD 35
     zombieHeight   DD 95
-    gadgetWidth   DD 25
-    gadgetHeight   DD 25
+    gadgetWidth   DD 45
+    gadgetHeight   DD 45
 
 
     ; in game variables
@@ -222,7 +228,8 @@ PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD
      ; music and sound effects
     backgroundMusic DB "../assets/sounds/backgroundmusic.mp3", 0
     buttonInputSound DB "../assets/sounds/button-input-sound-effects.mp3", 0
-    startGameSound DB "../assets/sounds/background-music.mp3", 0
+    startGameSound DB "../assets/sounds/start-game-sound-effects.mp3", 0
+    exitGameSound DB "../assets/sounds/exit-game-sound-effects.mp3", 0
 
     ; - MCI_OPEN_PARMS Structure ( API=mciSendCommand ) -
     open_dwCallback     DD ?
@@ -315,6 +322,11 @@ start:
     test   eax, eax
     jz     LoadBitmapFailed
     mov    playerScoreBuffBmp , eax
+
+    invoke LoadBitmap, hInstance, endWithoutSurvivorBackground
+    test   eax, eax
+    jz     LoadBitmapFailed
+    mov    endWithoutSurvivorBackgroundBmp , eax
     
     invoke WinMain, hInstance, NULL, arguments, SW_SHOWDEFAULT
     invoke ExitProcess, eax ; cleanup & return to operating system
@@ -393,7 +405,7 @@ start:
         .elseif(GAMESTATE == 2)
             invoke SelectObject, _hMemDC2, gameBackgroundBmp
         .elseif(GAMESTATE == 3)
-            invoke SelectObject, _hMemDC2, gameBackgroundBmp
+            invoke SelectObject, _hMemDC2, endWithoutSurvivorBackgroundBmp
         .endif
         
         invoke BitBlt, _hMemDC, 0, 0, windowWidth, windowHeight, _hMemDC2, 0, 0, SRCCOPY
@@ -406,27 +418,33 @@ start:
     paintScoreBar PROC _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
         LOCAL rect: RECT  ; RECT 結構定義了矩形左上角和右下角的坐標。
 
-            ; 格式化分數並寫入 scoreBuffer
-            invoke wsprintf, addr scoreBuffer, chr$("SCORE: %d "), score
-            ; 設置文本顏色
-            invoke SetTextColor, _hMemDC, 00FF8800h
-            ; 設置繪製文本的矩形區域
-            .if(GAMESTATE == 2)
-                mov   rect.left, 590
-                mov   rect.top, 10
-                mov   rect.right, 690
-                mov   rect.bottom, 50  
-            .elseif(GAMESTATE == 3)
-                mov   rect.left, 590
-                mov   rect.top, 492
-                mov   rect.right, 690
-                mov   rect.bottom, 532  
-            .endif
+        ; 格式化分數並寫入 scoreBuffer
+        invoke wsprintf, addr scoreBuffer, chr$("SCORE: %d "), score
+        ; ; 設置文本顏色
+        ; invoke SetTextColor, _hMemDC, 00FF8800h
 
-            ; 繪製文本
-            invoke DrawText, _hMemDC, addr scoreBuffer, -1, addr rect, DT_CENTER or DT_VCENTER or DT_SINGLELINE
+        ; 設置字體和顏色
+        ; ref: https://learn.microsoft.com/zh-tw/windows/win32/api/wingdi/nf-wingdi-createfonta
+        invoke CreateFontA, 30, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, NULL
+        invoke SelectObject, _hMemDC, eax
+        invoke SetTextColor, _hMemDC, 00FFFFFFh ; 白色
 
-            ret
+        ; 設置背景和邊框
+        invoke CreateSolidBrush, 005F5F5Fh; 灰色
+        invoke SelectObject, _hMemDC, eax
+        invoke SetBkMode, _hMemDC, TRANSPARENT
+
+        ; 設置繪製文本的矩形區域
+        mov   rect.left, 540
+        mov   rect.top, 20
+        mov   rect.right, 740
+        mov   rect.bottom, 60  
+
+        invoke RoundRect, _hMemDC, rect.left, rect.top, rect.right, rect.bottom, 15, 15 ; 圓角矩形背景
+        ; 繪製文本
+        invoke DrawText, _hMemDC, addr scoreBuffer, -1, addr rect, DT_CENTER or DT_VCENTER or DT_SINGLELINE
+
+        ret
     paintScoreBar ENDP
 
     ; ----------------------------------------------------------------------
@@ -493,6 +511,23 @@ start:
 
         ret
     paintZombie ENDP
+
+    ; ----------------------------------------------------------------------
+    playSound proc uses ebx lpstrSound:DWORD
+        mov   ebx, lpstrSound
+        mov   open_lpstrDeviceType, 0h
+        mov   open_lpstrElementName, ebx
+        invoke mciSendCommandA, 0, MCI_OPEN, MCI_OPEN_ELEMENT, OFFSET open_dwCallback
+        cmp   eax, 0h
+        je    play_sound
+        jmp   end_play_sound
+
+        play_sound:
+            invoke mciSendCommandA, open_wDeviceID, MCI_PLAY, MCI_NOTIFY, offset play_dwCallback
+            invoke mciSendCommandA, open_wDeviceID, MCI_CLOSE, 0, 0
+        end_play_sound:
+            ret
+    playSound endp
 
     ; ----------------------------------------------------------------------
 
@@ -757,13 +792,15 @@ start:
             invoke SetTimer, hWin, TIMER_SEED2, 500, NULL ; seed generator
 
             ; play background music
-            mov   open_lpstrDeviceType, 0h                       ; 0h = default device to play the file
-            mov   open_lpstrElementName, OFFSET backgroundMusic  ; file to play
-            invoke mciSendCommandA, 0, MCI_OPEN, MCI_OPEN_ELEMENT, OFFSET open_dwCallback  ; open the device
-            cmp   eax,0h      ; if the device was opened successfully
-            je    next		  ; jump to next
-            next:	
-                invoke mciSendCommandA,open_wDeviceID,MCI_PLAY,MCI_NOTIFY,offset play_dwCallback ; start playing the file
+            mov   open_lpstrDeviceType, 0h                       ; 0h = 預設播放裝置
+            mov   open_lpstrElementName, OFFSET backgroundMusic  ; 要播放的檔案
+            invoke mciSendCommandA, 0, MCI_OPEN, MCI_OPEN_ELEMENT, OFFSET open_dwCallback  ; 打開播放裝置
+            cmp   eax, 0h
+            jne   open_error                                    ; 如果打開失敗則跳到錯誤處理
+            mov   eax, open_wDeviceID
+            invoke mciSendCommandA, eax, MCI_PLAY, MCI_NOTIFY, offset play_dwCallback ; 開始循環播放檔案
+
+            open_error:
         .elseif uMsg == WM_TIMER
             .if wParam == TIMER_SEED
               add seedA, 17
@@ -802,7 +839,20 @@ start:
         .elseif uMsg == WM_ERASEBKGND ;避免畫面更新閃爍
             mov eax, 1
         .elseif uMsg == WM_KEYDOWN
-            .if wParam == VK_RETURN ; Enter 鍵
+            .if wParam == VK_RETURN && GAMESTATE != 2 ; Enter 鍵
+                ; play start game sound
+                mov   open_lpstrDeviceType, 0h                      ; 0h = default device to play the file
+                mov   open_lpstrElementName, OFFSET startGameSound  ; file to play
+                invoke mciSendCommandA, 0, MCI_OPEN, MCI_OPEN_ELEMENT, OFFSET open_dwCallback  ; open the device
+                cmp   eax,0h      ; if the device was opened successfully
+                je    play_start_game_sound		  ; jump to next
+                play_start_game_sound:	
+                    invoke mciSendCommandA,open_wDeviceID,MCI_PLAY,MCI_NOTIFY,offset play_dwCallback ; start playing the file
+                    ; close  the device after 0.2 seconds
+                    mov eax, 400
+                    invoke Sleep, eax
+                    invoke mciSendCommandA, open_wDeviceID, MCI_CLOSE, 0, 0 
+
                 .if (GAMESTATE == 1)
                   mov eax, offset ThreadProc
                   invoke CreateThread, NULL, NULL, eax, NULL, NORMAL_PRIORITY_CLASS, ADDR threadID 
@@ -818,19 +868,35 @@ start:
                     invoke InvalidateRect, hWnd, NULL, TRUE
                 .endif
             .endif
-              .if wParam == VK_I
-                  invoke randomNumberGenerator, 5, 10, seedB      ; just for testing
-                  invoke wsprintf, ADDR infoBuffer, chr$("Random Number: %d"), eax
-                  invoke MessageBox, hWin, ADDR infoBuffer, ADDR szDisplayName, MB_OK
-              .elseif wParam == VK_W
-                  mov keyWPressed, 1
-              .elseif wParam == VK_S
-                  mov keySPressed, 1
-              .elseif wParam == VK_A
-                  mov keyAPressed, 1
-              .elseif wParam == VK_D
-                  mov keyDPressed, 1
-              .endif
+
+            ; 控制鍵
+            .if wParam == VK_I 
+                invoke randomNumberGenerator, 5, 10, seedB      ; just for testing
+                invoke wsprintf, ADDR infoBuffer, chr$("Random Number: %d"), eax
+                invoke MessageBox, hWin, ADDR infoBuffer, ADDR szDisplayName, MB_OK
+            .elseif wParam == VK_W
+                mov keyWPressed, 1
+            .elseif wParam == VK_S
+                mov keySPressed, 1
+            .elseif wParam == VK_A
+                mov keyAPressed, 1
+        
+            .elseif wParam == VK_D
+                mov keyDPressed, 1
+            .endif
+            ; 離開鍵
+            .if wParam == VK_ESCAPE && (GAMESTATE == 3 || GAMESTATE == 1)
+                mov   open_lpstrDeviceType, 0h                      ; 0h = default device to play the file
+                mov   open_lpstrElementName, OFFSET exitGameSound  ; file to play
+                invoke mciSendCommandA, 0, MCI_OPEN, MCI_OPEN_ELEMENT, OFFSET open_dwCallback  ; open the device
+                invoke mciSendCommandA,open_wDeviceID,MCI_PLAY,MCI_NOTIFY,offset play_dwCallback ; start playing the file
+                
+                ; exit game after 0.2 seconds
+                mov eax, 200
+                invoke Sleep, eax
+                invoke SendMessage,hWin,WM_SYSCOMMAND,SC_CLOSE, NULL
+
+            .endif
         .elseif uMsg == WM_KEYUP
               .if wParam == VK_W
                   mov keyWPressed, 0
@@ -841,6 +907,12 @@ start:
               .elseif wParam == VK_D
                   mov keyDPressed, 0
               .endif        
+        .elseif uMsg == MM_MCINOTIFY
+            ; cmp   wParam, MCI_NOTIFY_SUCCESSFUL
+            ; jne   notify_error
+            ; invoke mciSendCommandA, lParam, MCI_PLAY, MCI_NOTIFY, offset play_dwCallback
+            ; notify_error:
+            ;     ; 
         .elseif uMsg == WM_FINISH
             invoke InvalidateRect, hWnd, NULL, TRUE ;強制刷新畫面
             .if(GAMESTATE == 2)
