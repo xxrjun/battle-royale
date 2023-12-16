@@ -131,7 +131,7 @@ PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD
     playerScoreBuff EQU 1013
 
     MAX_ZOMBIES EQU 15
-    CREF_TRANSPARENT  EQU 00FFFFFFh
+    CREF_TRANSPARENT  EQU 00000000h  ;去背之顏色(此為黑色)
     WM_FINISH EQU WM_USER + 100h
 
     TIMER_BUFF equ 105
@@ -472,7 +472,16 @@ start:
             
             ; 繪製殭屍
             push ecx
-            invoke SelectObject, _hMemDC2, zombieBmp
+            .if (buffOn == 1)
+                .if (buffType == 2)
+                    invoke SelectObject, _hMemDC2, zombieIceDebuffBmp
+                .else
+                    invoke SelectObject, _hMemDC2, zombieBmp
+                .endif
+            .else
+                invoke SelectObject, _hMemDC2, zombieBmp
+            .endif
+
             invoke TransparentBlt, _hMemDC, zombieX, zombieY, zombieWidth, zombieHeight, _hMemDC2, 0, 0, zombieWidth, zombieHeight, CREF_TRANSPARENT
             pop ecx
 
@@ -761,7 +770,7 @@ start:
             .elseif wParam == TIMER_SEED2
               add seedB, 1
             .elseif wParam == TIMER_ZOMBIE 
-                invoke randomNumberGenerator, 3, 9, seedB ;[此處可調整殭屍速度區間]
+                invoke randomNumberGenerator, 3, 6, seedB ;[此處可調整殭屍速度區間]
                 invoke activateZombie,eax
             .elseif wParam == TIMER_GADGET ;生成新道具
                 mov ebx, windowWidth
@@ -802,7 +811,7 @@ start:
                   invoke SetTimer, hWin, TIMER_SCORE, 500, NULL ; 設置計時器，分數加分觸發器(0.5秒一次)
                   invoke initGameplay
                   mov GAMESTATE, 2
-                  invoke randomNumberGenerator, 3, 9, seedB ;[此處可調整第一隻殭屍速度區間]
+                  invoke randomNumberGenerator, 3, 6, seedB ;[此處可調整第一隻殭屍速度區間]
                   invoke activateZombie,eax
                 .elseif (GAMESTATE == 3)
                     mov GAMESTATE, 1
@@ -972,10 +981,10 @@ start:
                                 .if buffType == 3
                                     mov beenHit, 0
                                 .else
-                                    mov beenHit, 0 ; 發生碰撞
+                                    mov beenHit, 1 ; 發生碰撞
                                 .endif
                             .else
-                                mov beenHit, 0 ; 發生碰撞
+                                mov beenHit, 1 ; 發生碰撞
                             .endif
                         .endif
                     .endif
