@@ -130,7 +130,7 @@ PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD
     playerStarBuff EQU 1012
     playerScoreBuff EQU 1013
 
-    MAX_ZOMBIES EQU 3
+    MAX_ZOMBIES EQU 15
     CREF_TRANSPARENT  EQU 00FFFFFFh
     WM_FINISH EQU WM_USER + 100h
 
@@ -138,6 +138,8 @@ PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD
     TIMER_SCORE equ 106
     TIMER_SEED  equ 107
     TIMER_SEED2  equ 108
+    TIMER_ZOMBIE  equ 109
+    TIMER_GADGET  equ 110
 
 ; ======================================================================
 
@@ -186,12 +188,12 @@ PlaySound PROTO STDCALL :DWORD,:DWORD,:DWORD
     playerX          DD  250     ; 玩家位置
     playerY          DD  250 
     playerSpeed      DD  10
-    beenHit          DD  0
-    gadgetX         DD  884
+    beenHit          DD  0      ;是否觸碰到殭屍
+    gadgetX         DD  884     
     gadgetY         DD  500
-    gadgetType      DD  0 ;   1-閃電,2-冰凍,3-無敵,4-分數加速累積
-    gadgetAppear    DD  0
-    buffOn          DD  0
+    gadgetType      DD  0       ; 1-閃電,2-冰凍,3-無敵,4-分數加速累積
+    gadgetAppear    DD  0       
+    buffOn          DD  0       ;玩家是否在道具效果生效期間
     buffType        DD  0
 
     ; user input
@@ -314,6 +316,7 @@ start:
 
     ; ----------------------------------------------------------------------
 
+    ;隨機數產生器(生產lowerLimit~upperLimit間隨機整數)
     randomNumberGenerator PROC lowerLimit :DWORD, upperLimit :DWORD, seed : DWORD
         ; 計算範圍大小
         mov ebx, upperLimit
@@ -330,6 +333,7 @@ start:
 
     ; ----------------------------------------------------------------------
 
+    ;初始化所有遊玩(GAMESTATE=2)要用到的變數
     initGameplay PROC
         ; 初始化玩家
         mov playerX, 100
@@ -358,7 +362,7 @@ start:
         ;其他初始化
         mov beenHit, 0
         mov score, 0
-        mov scoreIncrease, 7
+        mov scoreIncrease, 7  ;分數累加速度
         ;初始化buffer
         lea edi, scoreBuffer ; 將 scoreBuffer 的地址加載到 edi 寄存器
         mov ecx, 256        ; 設置循環計數為 256（scoreBuffer 的大小）
@@ -372,7 +376,7 @@ start:
 
     ; ----------------------------------------------------------------------
 
-    ;繪製圖片的函數
+    ;繪製遊戲背景畫面
     paintBackground PROC _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
         ; 繪製背景
         .if(GAMESTATE == 1)
@@ -383,12 +387,13 @@ start:
             invoke SelectObject, _hMemDC2, gameBackgroundBmp
         .endif
         
-        invoke BitBlt, _hMemDC, 0, 0, 1792, 1024, _hMemDC2, 0, 0, SRCCOPY
+        invoke BitBlt, _hMemDC, 0, 0, windowWidth, windowHeight, _hMemDC2, 0, 0, SRCCOPY
         ret
     paintBackground ENDP
 
     ; ----------------------------------------------------------------------
 
+    ;繪製分數欄
     paintScoreBar PROC _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
         LOCAL rect: RECT  ; RECT 結構定義了矩形左上角和右下角的坐標。
 
@@ -398,14 +403,14 @@ start:
             invoke SetTextColor, _hMemDC, 00FF8800h
             ; 設置繪製文本的矩形區域
             .if(GAMESTATE == 2)
-                mov   rect.left, 846
+                mov   rect.left, 590
                 mov   rect.top, 10
-                mov   rect.right, 946
+                mov   rect.right, 690
                 mov   rect.bottom, 50  
             .elseif(GAMESTATE == 3)
-                mov   rect.left, 846
+                mov   rect.left, 590
                 mov   rect.top, 492
-                mov   rect.right, 946
+                mov   rect.right, 690
                 mov   rect.bottom, 532  
             .endif
 
@@ -417,6 +422,7 @@ start:
 
     ; ----------------------------------------------------------------------
 
+    ;繪製玩家
     paintPlayer PROC _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
         .if(buffOn == 1)
             .if(buffType == 1)
@@ -437,80 +443,42 @@ start:
 
     ; ----------------------------------------------------------------------
 
+    ;繪製所有殭屍
     paintZombie PROC _hdc:HDC, _hMemDC:HDC, _hMemDC2:HDC
         LOCAL zombieX :DWORD
         LOCAL zombieY :DWORD
 
-        ; mov ecx, 0                  ; 初始化計數器
-        ; lea ebx, zombies            ; 獲取殭屍陣列的地址
-        ; DrawZombiesLoop:
-        ;     cmp [ebx + zombieObj.active], 0
-        ;     je SkipZombie           ; 如果殭屍未激活，跳過繪製
+        mov ecx, 0                  ; 初始化計數器
+        lea ebx, zombies            ; 獲取殭屍陣列的地址
+        DrawZombiesLoop:
+            cmp [ebx + zombieObj.active], 0
+            je SkipZombie           ; 如果殭屍未激活，跳過繪製
 
-        ;     ; 獲取殭屍的位置
-        ;     mov eax, [ebx + zombieObj.x] ; 將殭屍的 x 坐標移動到 eax 寄存器
-        ;     mov zombieX, eax           ; 再將 eax 寄存器的值移動到 zombieX 變數
+            ; 獲取殭屍的位置
+            mov eax, [ebx + zombieObj.x] 
+            mov zombieX, eax             
 
-        ;     mov eax, [ebx + zombieObj.y] ; 將殭屍的 y 坐標移動到 eax 寄存器
-        ;     mov zombieY, eax           ; 再將 eax 寄存器的值移動到 zombieY 變數
-
-        ;     ; 繪製殭屍
-        ;     invoke SelectObject, _hMemDC2, zombieBmp
-        ;     invoke TransparentBlt, _hMemDC, zombieX, zombieY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
-
-        ;     SkipZombie:
-        ;     add ebx, TYPE zombieObj ; 移動到下一個殭屍
-        ;     inc ecx
-        ;     cmp ecx, MAX_ZOMBIES
-        ;     jl DrawZombiesLoop      ; 繼續循環直到處理完所有殭屍
-        lea ebx, zombies    ; 獲取殭屍陣列的地址
-
-        ; 繪製第一個殭屍
-        cmp [ebx + zombieObj.active], 0
-        jne DrawFirstZombie
-        jmp SkipFirstZombie
-        DrawFirstZombie:
-            mov eax, [ebx + zombieObj.x]
-            mov zombieX, eax
-            mov eax, [ebx + zombieObj.y]
-            mov zombieY, eax
+            mov eax, [ebx + zombieObj.y] 
+            mov zombieY, eax            
+            
+            ; 繪製殭屍
+            push ecx
             invoke SelectObject, _hMemDC2, zombieBmp
             invoke TransparentBlt, _hMemDC, zombieX, zombieY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
-        SkipFirstZombie:
+            pop ecx
 
-        ; 繪製第二個殭屍
-        add ebx, TYPE zombieObj
-        cmp [ebx + zombieObj.active], 0
-        jne DrawSecondZombie
-        jmp SkipSecondZombie
-        DrawSecondZombie:
-            mov eax, [ebx + zombieObj.x]
-            mov zombieX, eax
-            mov eax, [ebx + zombieObj.y]
-            mov zombieY, eax
-            invoke SelectObject, _hMemDC2, zombieBmp
-            invoke TransparentBlt, _hMemDC, zombieX, zombieY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
-        SkipSecondZombie:
-
-        ; 繪製第三個殭屍
-        add ebx, TYPE zombieObj
-        cmp [ebx + zombieObj.active], 0
-        jne DrawThirdZombie
-        jmp SkipThirdZombie
-        DrawThirdZombie:
-            mov eax, [ebx + zombieObj.x]
-            mov zombieX, eax
-            mov eax, [ebx + zombieObj.y]
-            mov zombieY, eax
-            invoke SelectObject, _hMemDC2, zombieBmp
-            invoke TransparentBlt, _hMemDC, zombieX, zombieY, 25, 25, _hMemDC2, 0, 0, 25, 25, CREF_TRANSPARENT
-        SkipThirdZombie:        
+        SkipZombie:
+            add ebx, TYPE zombieObj ; 移動到下一個殭屍
+            inc ecx
+            cmp ecx, MAX_ZOMBIES
+            jl DrawZombiesLoop      ; 繼續循環直到處理完所有殭屍
 
         ret
     paintZombie ENDP
 
     ; ----------------------------------------------------------------------
 
+    ;繪製道具
     paintGadget PROC _hdc:HDC,_hMemDC:HDC, _hMemDC2:HDC
 
         .if (gadgetAppear == 1)
@@ -531,6 +499,7 @@ start:
 
     ; ----------------------------------------------------------------------
 
+    ;更新遊戲畫面
     updateScrenn PROC
         LOCAL hMemDC:HDC
         LOCAL hMemDC2:HDC
@@ -543,7 +512,7 @@ start:
         mov hMemDC, eax
         invoke CreateCompatibleDC, hDC ; for double buffering
         mov hMemDC2, eax
-        invoke CreateCompatibleBitmap, hDC, 1792, 1024
+        invoke CreateCompatibleBitmap, hDC, windowWidth, windowHeight
         mov hBitmap, eax
 
         invoke SelectObject, hMemDC, hBitmap
@@ -557,7 +526,7 @@ start:
         .elseif(GAMESTATE == 3)
             invoke paintScoreBar, hDC, hMemDC, hMemDC2
         .endif
-        invoke BitBlt, hDC, 0, 0, 1792, 1024, hMemDC, 0, 0, SRCCOPY
+        invoke BitBlt, hDC, 0, 0, windowWidth, windowHeight, hMemDC, 0, 0, SRCCOPY
 
         invoke DeleteDC, hMemDC     ;DeleteDC 函數刪除指定的設備內容 (DC)。
         invoke DeleteDC, hMemDC2
@@ -568,6 +537,7 @@ start:
 
     ; ----------------------------------------------------------------------
 
+    ;更新玩家位置
     updatePlayerPosition PROC
         mov edx, playerSpeed
         .if keyWPressed == 1
@@ -576,7 +546,9 @@ start:
             .endif
         .endif 
         .if keySPressed == 1
-            .if playerY < 934
+          mov eax, windowHeight
+          sub eax, 125
+            .if playerY < eax
                 add playerY, edx
             .endif
         .endif
@@ -586,7 +558,9 @@ start:
             .endif
         .endif
         .if keyDPressed == 1
-            .if playerX < 1712
+            mov eax, windowWidth
+            sub eax, 75
+            .if playerX < eax
                 add playerX, edx
             .endif
         .endif
@@ -596,56 +570,8 @@ start:
 
     ; ----------------------------------------------------------------------
 
-    formatZombiesInfo PROC
-        LOCAL zombieX :DWORD
-        LOCAL zombieY :DWORD
-        LOCAL isActive:DWORD
-        LOCAL bufferPos:DWORD
-        LOCAL formattedLength:DWORD
-
-        mov ecx, 0                   ; 初始化計數器
-        lea ebx, zombies             ; 獲取殭屍陣列的地址
-        lea edi, infoBuffer    ; 獲取資訊緩衝區的地址
-        mov bufferPos, edi           ; 記住緩衝區的起始位置
-
-        FormatLoop:
-            cmp ecx, MAX_ZOMBIES
-            jge EndFormat            ; 如果處理完所有殭屍，結束循環
-
-            ; 從殭屍陣列中獲取資訊
-            mov eax, [ebx + zombieObj.x]
-            mov zombieX, eax
-            mov eax, [ebx + zombieObj.y]
-            mov zombieY, eax
-            mov eax, [ebx + zombieObj.active]
-            mov isActive, eax
-
-            ; 格式化到緩衝區中
-            cmp ecx, 2
-            je  ToWrite
-            jmp Skip
-
-            ToWrite:
-            invoke wsprintf, addr infoBuffer, chr$("X:%d,Y:%d,A:%d"), zombieX, zombieY, isActive
-            mov formattedLength, eax   ; 獲取格式化字串的長度
-
-            Skip:
-            ; 更新緩衝區位置
-            add edi, 30   ; 根據格式化字串長度更新緩衝區指針
-            add ebx, SIZEOF zombieObj    ; 移動到下一個殭屍
-            inc ecx
-            jmp FormatLoop
-
-        EndFormat:
-            ; 在緩衝區的最後添加結束字元
-            mov byte ptr [edi], 0
-
-        ret
-    formatZombiesInfo ENDP
-
-    ; ----------------------------------------------------------------------
-
-    activateZombie PROC zombieSpeed :DWORD;遍歷十隻殭屍，將一隻未激活的殭屍激活，如果十隻都被激活則不做事
+    ;激活新殭屍
+    activateZombie PROC zombieSpeed :DWORD;遍歷十隻殭屍，將一隻未激活的殭屍激活，如果全部都被激活則不做事
         mov ecx, 0
         lea ebx, zombies
         ActivateZombieLoop:
@@ -660,7 +586,7 @@ start:
 
         ToActivateZombie:
             ; 激活殭屍並設定初始值位置
-            mov [ebx + zombieObj.x], 550
+            mov [ebx + zombieObj.x], 550      ;[此處調整殭屍生成位置]
             mov [ebx + zombieObj.y], 550
             mov [ebx + zombieObj.active], 1
             mov eax, zombieSpeed
@@ -821,13 +747,17 @@ start:
               add seedA, 17
             .elseif wParam == TIMER_SEED2
               add seedB, 1
-            .elseif wParam == 1 
-                invoke randomNumberGenerator, 3, 9, seedB
+            .elseif wParam == TIMER_ZOMBIE 
+                invoke randomNumberGenerator, 3, 9, seedB ;[此處可調整殭屍速度區間]
                 invoke activateZombie,eax
-            .elseif wParam == 2 ;生成新道具
-                invoke randomNumberGenerator, 100, 1692, seedA
+            .elseif wParam == TIMER_GADGET ;生成新道具
+                mov ebx, windowWidth
+                sub ebx, 125
+                invoke randomNumberGenerator, 125, ebx, seedA
                 mov gadgetX, eax
-                invoke randomNumberGenerator, 150, 874, seedA
+                mov ebx, windowHeight
+                sub ebx, 125
+                invoke randomNumberGenerator, 125, ebx, seedA
                 mov gadgetY, eax
                 invoke randomNumberGenerator, 1, 4, seedB
                 mov gadgetType, eax
@@ -848,12 +778,12 @@ start:
                 .if (GAMESTATE == 1)
                   mov eax, offset ThreadProc
                   invoke CreateThread, NULL, NULL, eax, NULL, NORMAL_PRIORITY_CLASS, ADDR threadID 
-                  invoke SetTimer, hWin, 1, 10000, NULL ; 設置計時器，ID為1，殭屍生成觸發器
-                  invoke SetTimer, hWin, 2, 7548, NULL ; 設置計時器，ID為2，道具生成觸發器
-                  invoke SetTimer, hWin, TIMER_SCORE, 500, NULL ; 設置計時器，分數加分觸發器
+                  invoke SetTimer, hWin, TIMER_ZOMBIE, 10000, NULL ; 設置計時器，殭屍生成觸發器(10秒一次)
+                  invoke SetTimer, hWin, TIMER_GADGET, 7548, NULL ; 設置計時器，道具生成觸發器(7.548秒一次)
+                  invoke SetTimer, hWin, TIMER_SCORE, 500, NULL ; 設置計時器，分數加分觸發器(0.5秒一次)
                   invoke initGameplay
                   mov GAMESTATE, 2
-                  invoke randomNumberGenerator, 3, 9, seedB
+                  invoke randomNumberGenerator, 3, 9, seedB ;[此處可調整第一隻殭屍速度區間]
                   invoke activateZombie,eax
                 .elseif (GAMESTATE == 3)
                     mov GAMESTATE, 1
@@ -861,7 +791,7 @@ start:
                 .endif
             .endif
               .if wParam == VK_I
-                  invoke randomNumberGenerator, 5, 10, seedB
+                  invoke randomNumberGenerator, 5, 10, seedB      ; just for testing
                   invoke wsprintf, ADDR infoBuffer, chr$("Random Number: %d"), eax
                   invoke MessageBox, hWin, ADDR infoBuffer, ADDR szDisplayName, MB_OK
               .elseif wParam == VK_W
@@ -884,13 +814,13 @@ start:
                   mov keyDPressed, 0
               .endif        
         .elseif uMsg == WM_FINISH
-            invoke InvalidateRect, hWnd, NULL, TRUE ;;addr rect, TRUE
+            invoke InvalidateRect, hWnd, NULL, TRUE ;強制刷新畫面
             .if(GAMESTATE == 2)
                 .if beenHit == 1
                     mov GAMESTATE, 3
                     
-                    invoke KillTimer, hWin, 1
-                    invoke KillTimer, hWin, 2
+                    invoke KillTimer, hWin, TIMER_ZOMBIE
+                    invoke KillTimer, hWin, TIMER_GADGET
                     invoke KillTimer, hWin, TIMER_SCORE
                     invoke KillTimer, hWin, TIMER_BUFF
                 .endif
@@ -923,7 +853,8 @@ start:
 
     ; ----------------------------------------------------------------------
 
-    moveZombies PROC
+    ;更新所有殭屍位置
+    updateZombiePositions PROC
         LOCAL zombieX:DWORD
         LOCAL zombieY:DWORD
         LOCAL zombieSpeed:DWORD
@@ -981,10 +912,11 @@ start:
             jl MoveZombiesLoop      ; 繼續循環直到處理完所有殭屍
 
         ret
-    moveZombies ENDP
+    updateZombiePositions ENDP
 
     ; ----------------------------------------------------------------------
 
+    ;檢查殭屍與玩家是否發生碰撞
     checkZombieCollision PROC
         LOCAL zombieX:DWORD
         LOCAL zombieY:DWORD
@@ -1040,6 +972,7 @@ start:
 
     ; ----------------------------------------------------------------------
 
+    ;檢查道具與玩家是否發生碰撞
     checkGadgetCollision PROC
         ; 判斷 X 座標是否重疊
         mov eax, playerX;eax存判斷boundary
@@ -1070,7 +1003,8 @@ start:
 
     ; ----------------------------------------------------------------------
 
-    checkBuffEffect PROC
+    ;道具1(玩家加速)、道具4(分數累加加速)實作
+    checkBuffEffect PROC ;[此處可調整道具1、4加速程度]
         .if (buffOn == 1)
             .if(buffType == 1)
             mov playerSpeed, 20
@@ -1086,13 +1020,14 @@ start:
 
     ; ----------------------------------------------------------------------
 
+    ;遊玩(GAMESTATE=2)每幀循環
     ThreadProc PROC USES ecx Param:DWORD
         ; 線程循環
         ThreadLoop:
             invoke Sleep, 100  ; 等待 100 毫秒
 
             invoke updatePlayerPosition
-            invoke moveZombies
+            invoke updateZombiePositions
             invoke checkZombieCollision
             invoke checkGadgetCollision
             invoke checkBuffEffect
