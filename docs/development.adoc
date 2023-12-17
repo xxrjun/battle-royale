@@ -1,0 +1,139 @@
+= Battle Royale Development Docs
+xxrjun <https://github.com/xxrjun>
+:revnumber: v1
+:revdate: Dec 14, 2023
+:revremark: 開發已告一段落，此文件暫停更新，內容可能已過時
+:icons: font
+:toc:
+:toclevels: 3
+:sectnums:
+:sectnumlevels: 5
+:version-label: Edition
+
+[quote]
+____
+Development documentation for the Battle Royale game project on x86-32 platform.
+____
+
+== 繳交
+
+* [ ] Project Code
+* [ ] PPT
+* [ ] Report: README and PDF
+
+== 開發工具
+
+=== 程式開發
+
+* link:https://www.masm32.com/index.htm[MASM32 SDK] - 工具集，包含 assembler、editor、linker 等工具
+** Assembler: `ml.exe` 用於將組合語言源代碼轉換成機器代碼。
+** Linker: `link.exe` 用於將組譯器產生的對象檔案連結成可執行檔案。
+* link:https://code.visualstudio.com/[Visual Studio Code] 或 MASM32 SDK 中附帶的 link:https://www.masm32.com/[MASM Editor] - 編輯器，用於編寫組合語言程式碼
+* link:https://chat.openai.com/[ChatGPT] with GPT4.0 - 協作工具，詢問程式碼、開發問題等
+
+=== 影音素材
+
+* link:https://openai.com/dall-e-3[DALL·E] - 圖片生成工具，用於製作遊戲素材
+* link:https://huggingface.co/spaces/facebook/MusicGen[MusicGen] - 音樂生成工具，用於製作遊戲音效
+* link:https://mixkit.co/free-sound-effects/game/[Mixkit] - 遊戲音效素材
+
+== 使用 Makefile 編譯
+
+[quote]
+____
+使用 Makefile 編譯，需要安裝 link:https://www.masm32.com/index.htm[MASM32 SDK]，並將其安裝路徑加入環境變量。
+____
+
+[source,shell]
+----
+make # 編譯並生成可執行文件
+make clean # 清理
+----
+
+== 遊戲設計
+
+[quote]
+____
+別人恐懼我貪婪
+____
+
+Notes: 斜線處將根據遊戲體驗進行調整
+
+* *遊戲模式:* 單人遊戲（未來考慮新增雙人模式）
+* *目標:* 獲得高分，分數會隨著時間持續累加，存活越久分數會越高
+* *遊戲規則:*
+** *遊戲時間*
+*** 無上限
+** *角色設定*
+*** *倖存者:* 玩家操控的角色。單人遊戲時使用 WASD 鍵控制，雙人遊戲時第二位玩家使用方向鍵控制。倖存者的目標是躲避殭屍，收集寶石。
+*** *殭屍:* 皆由電腦控制，遊戲開始時有一隻，每隔二十秒會增加一隻，如果倖存者被殭屍碰到，將變成殭屍，可以追逐剩餘的倖存者，操作鍵不變。
+
+** *遊戲結束條件*
+** 所有倖存者被轉化為殭屍。
+*** 遊戲時間結束。此時，顯示獲得最高分數的倖存者。
+
+** *道具系統*
+*** *閃電:* 玩家移動加速3秒
+*** *冰凍:* 所有殭屍暫停移動3秒
+*** *無敵:* 玩家觸碰到殭屍不會結束遊戲，持續3秒
+*** *鈔票:* 分數累加速度加快3秒
+
+* *遊戲流程:*
+** *首頁*
+*** 選擇單人或雙人遊戲。
+*** 開始遊戲按鈕，進入遊戲畫面。
+
+* *遊玩畫面*
+** 設計為廢墟風格的長方形空間。殭屍會追逐倖存者，倖存者要盡可能取得越多寶石。
+
+* *結束畫面*
+** 顯示最終結果
+*** 零人存活 ⇒ 世界末日
+*** 得分最高的倖存者 ⇒ 恭喜暫時活下來了
+** 提供”重新開始”和“結束遊戲”的選項。
+
+== 專案架構
+
+[quote]
+____
+預期結構大致如下，可能會有所變動
+____
+
+[source,shell]
+----
+battle-royale/
+│
+├── src/                    # 源代碼目錄
+│   └── battle_royale.asm   # 工具和公用函數
+│
+├── bin/                    # 編譯後的二進制文件和可執行文件
+│   └── battle_royle.exe    # 可執行文件
+│
+├── docs/                   # 文件目錄
+│   └── development.md      # 開發相關文檔
+│
+├── assets/                 # 資源文件，如圖像、音效等
+│   ├── docs/               # 文件用圖像 
+│   ├── images/             # 遊戲用圖像
+│   └── sounds/             # 遊戲用音效
+│
+├── lib/                    # 外部庫和依賴
+├── Makefile                # 編譯腳本
+├── README.md               # 專案說明文件
+└── .gitignore              # Git忽略文件配置
+----
+
+== 命名規範
+
+* label: snake_case[蛇形命名法]:所有字母小寫，單詞間用下劃線分隔，如 `battle_royale.asm`
+* variable: camelCase[駝峰命名法]:首字母小寫，其餘單詞首字母大寫，如 `battleRoyale`
+* custom procedure: camelCase[駝峰命名法]，以動詞會首，如 `drawMap`
+
+== 參考資料
+
+* link:https://learn.microsoft.com/en-us/windows/win32/api/_winmsg/[Programming reference for the Win32 API - Windows and Messages]
+** link:https://learn.microsoft.com/en-us/windows/win32/api/winbase[winbase.h header]
+** link:https://learn.microsoft.com/en-us/windows/win32/api/winuser[winuser.h header]
+
+* link:https://learn.microsoft.com/en-us/cpp/assembler/masm/directives-reference?view=msvc-170[MASM Directives Reference]
+
