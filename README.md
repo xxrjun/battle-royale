@@ -196,7 +196,7 @@ battle-royale/
 ### 程式架構
 
 <div align="center">
-  <img align="center" src="./assets/docs/專案架構圖.svg" alt="程式架構" width="800" >
+  <img align="center" src="./assets/docs/專案架構圖.png" alt="程式架構" width="800" >
 </div>
 <br>
 
