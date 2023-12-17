@@ -165,7 +165,10 @@ make # or make all
 
 ## 遊戲流程
 
-@TODO
+<div align="center">
+  <img align="center" src="./assets/docs/流程圖.png" alt="遊戲流程" width="800" >
+</div>
+<br>
 
 ## 專案架構
 
